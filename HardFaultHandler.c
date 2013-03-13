@@ -25,7 +25,10 @@ uint32_t fh_afsr;
 
 uint32_t fh_bfar;
 
-uint32_t fh_oldpc; // PC value
+// Harvest a few key registers
+uint32_t fh_oldpc; 
+uint32_t fh_oldsp; 
+uint32_t fh_oldlr; 
 uint32_t fh_xpsr;  // Status register
 
 // This is a one way trip.
@@ -44,18 +47,28 @@ __attribute__ ((naked)) void  HardFaultHandler(void)   {
 				"MRS	R0,XPSR\n\t"
 				"LDR	R1, =fh_xpsr\n\t"
 				"STR	R0, [R1,#0]\n\t"
-				"@ Determine which stack, and save the offending PC\n\t"			
+
+				"@ Determine which stack\n\t"			
 				"TST 	LR,#0x04\n\t"
-				"ITTEE EQ\n\t"
+				"ITE EQ\n\t"
 				"MRSEQ R0, MSP\n\t"
-				"LDREQ R0, [R0, #24]\n\t"
 				"MRSNE R0, PSP\n\t"
-				"LDRNE R0, [R0, #24]\n\t"
-				"LDR   R1, =fh_oldpc\n\t"
-				"STR   R0, [R1,#0]\n\t"
-								
-	            : : : "r0","r1" );
-		
+
+				"LDR   R2, =fh_oldpc\n\t"
+				"LDR   R1, [R0, #24]\n\t"
+				"STR   R1, [R2,#0]\n\t"
+
+				"LDR   R2, =fh_oldlr\n\t"
+				"LDR   R1, [R0, #20]\n\t"
+				"STR   R1, [R2,#0]\n\t"
+				
+				"LDR   R2, =fh_oldsp\n\t"
+				"ADD   R0, #32\n\t"
+				"STR   R0, [R2,#0]\n\t"
+					
+	            : : : "r0","r1","r2" );
+
+		// Some Naked Constants....		
 		fh_bfar = *( (uint32_t *) 0xe000ed38);
 
 		fh_mmsr = *( (uint8_t *)  0xe000ed28);
@@ -83,16 +96,22 @@ void FaultISRnice(void) {
 	// strcpy(buffer,buf0);
 	// for ( p = buffer; *p != '\0'; p++) UARTCharPut(UART0_BASE,*p);
 
-	usprintf(buffer,"Fault %02x\r\n",(fh_xpsr & 0xf));
+	usprintf(buffer,"Fault %d\r\n",(fh_xpsr & 0x1FF));
 	for ( char* p = buffer; *p != '\0'; p++ ) UARTCharPut(UART0_BASE,*p);
 
-	usprintf(buffer,"MMSR: %02x\r\nBFSR: %02x\r\n\0",fh_mmsr,fh_bfsr);
+	usprintf(buffer,"XFSR: 0x%08x PC: 0x%08x ",fh_xpsr,fh_oldpc);
+	for ( char* p = buffer; *p != '\0'; p++ ) UARTCharPut(UART0_BASE,*p);
+
+	usprintf(buffer,"SP: 0x%08x LR: 0x%08x\r\n",fh_oldsp,fh_oldlr);
+	for ( char* p = buffer; *p != '\0'; p++ ) UARTCharPut(UART0_BASE,*p);
+
+	usprintf(buffer,"MMSR: %02x BFSR: %02x\r\n",fh_mmsr,fh_bfsr);
 	for ( char* p = buffer; *p != '\0'; p++ ) UARTCharPut(UART0_BASE,*p);
 	
-	usprintf(buffer,"UFSR: %02x\r\nHFSR: %02x\r\n\0",fh_ufsr,fh_hfsr);
+	usprintf(buffer,"UFSR: %02x HFSR: %02x\r\n\0",fh_ufsr,fh_hfsr);
 	for ( char* p = buffer; *p != '\0'; p++ ) UARTCharPut(UART0_BASE,*p);
 
-	usprintf(buffer,"DFSR: %02x\r\nAFSR: %02x\r\n\0",fh_dfsr,fh_afsr);
+	usprintf(buffer,"DFSR: %02x AFSR: %02x\r\n\0",fh_dfsr,fh_afsr);
 	for ( char* p = buffer; *p != '\0'; p++ ) UARTCharPut(UART0_BASE,*p);
 
 	// See if there's good data in there
@@ -100,9 +119,6 @@ void FaultISRnice(void) {
 		usprintf(buffer,"BFAR: %02x\r\n\0",fh_bfar);
 		for ( char* p = buffer; *p != '\0'; p++ ) UARTCharPut(UART0_BASE,*p);
 	 	}
-
-	usprintf(buffer,"XFSR: %02x\r\nPC: %02x\r\n\0",fh_xpsr,fh_oldpc);
-	for ( char* p = buffer; *p != '\0'; p++ ) UARTCharPut(UART0_BASE,*p);
 
 	// Spin forever, wait for help.
 	while(1) { ; }
