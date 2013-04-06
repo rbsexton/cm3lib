@@ -2,7 +2,7 @@ Various code for use on the Cortex-M3
 ====================================
 Contents
 -------------
-locker.[ch] - Advisory bitbanded locking routines
+locker-bb.[ch] - Advisory bitbanded locking routines
 
 reset-analyze-lm3s.c - POR Analysis example for TI Stellaris Cortex-M3
 
