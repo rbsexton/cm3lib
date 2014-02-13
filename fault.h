@@ -17,6 +17,10 @@
 #define FH_REGISTER_SAVE __asm__ __volatile__ ( \
    ".thumb \n\t" \
    ".thumb_func\n\t" \
+   "@ .set snap R0\n" \
+   "@ .set oldsp R1\n" \
+   "ldr R0, =regdump\n\t" \
+   \
    " @ Pull PC from the right stack\n\t" \
    "TST 	LR,#0x04\n\t" \
    "ITE EQ         \n\t" \
@@ -25,18 +29,16 @@
    \
    "push {r4-r7}\n" \
    \
-   "MRS	R1,XPSR             \n\t" \
-   "STR	R1, [R1,#64]        \n\t" \
-   \
-   "ldr	R0, =regdump\n\t" \
+   "MRS	R2,XPSR             \n\t" \
+   "STR	R2, [R0,#64]        \n\t" \
    \
    " @ Now move the dump pointer over the first four, then back\n\t" \
    "ADD R0, #16                  \n\t" \
-   "STMIA.W  R1, { r4-r11 }      @ Get the others\n\t " \
+   "STMIA.W  R0, { r4-r11 }      @ Get the others\n\t " \
    "@ That Completes r4-r11\n\t" \
    \
    "SUB    R0, #16         \n" \
-   "LDMIA	R1, {r4-r7}\n\t" \
+   "LDMIA  R1, {r4-r7}\n\t" \
    "STMIA  R0, {r4-r7}\n\t" \
    "@ Now we have r0-r11\n\t" \
    \
