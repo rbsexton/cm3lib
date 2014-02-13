@@ -17,16 +17,18 @@
 #define FH_REGISTER_SAVE __asm__ __volatile__ ( \
    ".thumb \n\t" \
    ".thumb_func\n\t" \
-   "ldr	R0, =regdump\n\t" \
+   " @ Pull PC from the right stack\n\t" \
+   "TST 	LR,#0x04\n\t" \
+   "ITE EQ         \n\t" \
+   "MRSEQ R1, MSP  \n\t" \
+   "MRSNE R1, PSP  \n\t" \
+   \
+   "push {r4-r7}\n" \
    \
    "MRS	R1,XPSR             \n\t" \
    "STR	R1, [R1,#64]        \n\t" \
    \
-   " @ Pull PC from the right stack\n\t" \
-   "TST 	LR,#0x04\n\t" \
-   "ITE EQ         \n\t" \
-   "MRSEQ R0, MSP  \n\t" \
-   "MRSNE R1, PSP  \n\t" \
+   "ldr	R0, =regdump\n\t" \
    \
    " @ Now move the dump pointer over the first four, then back\n\t" \
    "ADD R0, #16                  \n\t" \
@@ -51,5 +53,6 @@
    "ADD R1, #32\n\t" \
    "STR   R1, [ R0, #52] @ r13/sp\n\t" \
    \
-   : : : "r0","r1","r2","r3","r4","r5","r6","r7", "memory" );
+   "pop {r4-r7}\n" \
+   : : : "r0","r1","r2", "memory" );
 		
