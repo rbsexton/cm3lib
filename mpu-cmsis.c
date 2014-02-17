@@ -18,6 +18,8 @@
 #define MPU_PRW_URW  (0x03UL << MPU_RASR_AP_Pos)
 #define MPU_PRW_URO  (0x02UL << MPU_RASR_AP_Pos)
 
+#define RASR_Entry_Enable 1
+
 // Here is a default table.  Note that we just skip the 
 // Region select register and whack it all in.
 // This also includes templates
@@ -31,22 +33,15 @@
 // register.  That may not be what you want, so only load valid, enabled regions.
 // In this case, just use duplicates for filler.
 uint32_t const mpudefaults [8][2] = {
-  {          0 | MPU_RBAR_VALID_Msk | 0 , MPU_PRW_URW | MPU_SIZE_4G | MPU_RASR_ENA_Msk },
-  {          0 | MPU_RBAR_VALID_Msk | 1 , MPU_PRW_URW | MPU_SIZE_4G | MPU_RASR_ENA_Msk },
-  {          0 | MPU_RBAR_VALID_Msk | 2 , MPU_PRW_URW | MPU_SIZE_4G | MPU_RASR_ENA_Msk },
-  {          0 | MPU_RBAR_VALID_Msk | 3 , MPU_PRW_URW | MPU_SIZE_4G | MPU_RASR_ENA_Msk },
-  {          0 | MPU_RBAR_VALID_Msk | 4 , MPU_PRW_URW | MPU_SIZE_4G | MPU_RASR_ENA_Msk },
-  {          0 | MPU_RBAR_VALID_Msk | 5 , MPU_PRW_URW | MPU_SIZE_4G | MPU_RASR_ENA_Msk },
-  {          0 | MPU_RBAR_VALID_Msk | 6 , MPU_PRW_URW | MPU_SIZE_4G | MPU_RASR_ENA_Msk },
-  {          0 | MPU_RBAR_VALID_Msk | 7 , MPU_PRW_URW | MPU_SIZE_4G | MPU_RASR_ENA_Msk }
+  {          0 | MPU_RBAR_VALID_Msk | 0 , MPU_PRW_URW | MPU_SIZE_4G | RASR_Entry_Enable },
+  {          0 | MPU_RBAR_VALID_Msk | 1 , MPU_PRW_URW | MPU_SIZE_4G  },
+  { 0x20000000 | MPU_RBAR_VALID_Msk | 2 , MPU_PRW_URO | MPU_SIZE_4K  },
+  { 0x20000000 | MPU_RBAR_VALID_Msk | 3 , MPU_PRW_URO | MPU_SIZE_4K  },
+  { 0x20000000 | MPU_RBAR_VALID_Msk | 4 , MPU_PRW_URO | MPU_SIZE_4K  },
+  { 0x20000000 | MPU_RBAR_VALID_Msk | 5 , MPU_PRW_URO | MPU_SIZE_4K  },
+  { 0x20000000 | MPU_RBAR_VALID_Msk | 6 , MPU_PRW_URO | MPU_SIZE_4K | RASR_Entry_Enable  },
+  {          0 | MPU_RBAR_VALID_Msk | 7 , MPU_PRW_URW | MPU_SIZE_4G  }
 
-  //{ 0x20000000 | MPU_RBAR_VALID_Msk | 2 , MPU_PRW_URO | MPU_SIZE_32B | MPU_RASR_ENA_Msk },
-  //{ 0x20000000 | MPU_RBAR_VALID_Msk | 3 , MPU_PRW_URO | MPU_SIZE_32B | MPU_RASR_ENA_Msk },
-  //{ 0x20000000 | MPU_RBAR_VALID_Msk | 4 , MPU_PRW_URO | MPU_SIZE_32B | MPU_RASR_ENA_Msk },
-  //{ 0x20000000 | MPU_RBAR_VALID_Msk | 5 , MPU_PRW_URO | MPU_SIZE_32B | MPU_RASR_ENA_Msk },
-
-  //{ 0x20000000 | MPU_RBAR_VALID_Msk | 6 ,  MPU_PRW_URO| MPU_SIZE_4K | MPU_RASR_ENA_Msk },
-  //{ 0x20000000 | MPU_RBAR_VALID_Msk | 7 ,  MPU_PRW_URO| MPU_SIZE_4K | MPU_RASR_ENA_Msk },
 };
 
 
