@@ -35,7 +35,9 @@ int ringbuffer_used(RINGBUF* rb) {
 	return(rb->bufsize - rb->freecount);
 	}
 
-void ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
+// Add a character to a buffer, and return the number
+// of spaces available.
+int ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
 	if ( rb->freecount > 1 ) {
 		rb->buf[rb->next_write] = c;
 		(rb->freecount)--;
@@ -50,6 +52,7 @@ void ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
 		rb->next_read &= rb->bufmask;
 		// No change in freecount
 		}
+	return(rb->freecount);
 	}
 // Do the converse of add.  
 uint8_t ringbuffer_getchar(RINGBUF* rb) {
