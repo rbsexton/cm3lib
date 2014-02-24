@@ -20,13 +20,19 @@
 #include "ringbuffer.h"
 
 void ringbuffer_init(RINGBUF* rb, uint8_t* buf, int size) {
+	rb->next_read=0;   
+	rb->next_write=0;
+	rb->dropped=0;
 	rb->buf = buf;
 	rb->bufsize = size;
 	rb->bufmask = size - 1;
 	rb->freecount = size;
-	rb->next_write=0;
-	rb->next_read=0;
 	}
+
+
+// Remember that it cannot fill up.
+// int ringbuffer_free(RINGBUF* rb) {
+// 	return(rb->bufmask -  (rb->next_write - rb->next_read) );
 
 int ringbuffer_free(RINGBUF* rb) {
 	return(rb->freecount);
