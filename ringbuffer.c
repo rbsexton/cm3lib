@@ -53,6 +53,7 @@ int ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
 		rb->buf[rb->next_write & rb->bufmask] = c;
 		rb->next_write += 1;
 		rb->next_read += 1;
+		rb->dropped += 1;
 		// No change in freecount
 		}
 	return(rb->freecount);
