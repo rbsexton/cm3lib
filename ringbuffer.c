@@ -39,17 +39,14 @@ int ringbuffer_used(RINGBUF* rb) {
 // of spaces available.
 int ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
 	if ( rb->freecount > 1 ) {
-		rb->buf[rb->next_write] = c;
+		rb->buf[rb->next_write & rb->bufmask] = c;
 		(rb->freecount)--;
 		rb->next_write += 1; 
-		rb->next_write &= rb->bufmask;
 		}
 	else { // It gets complicated.  Steal one
-		rb->buf[rb->next_write] = c;
+		rb->buf[rb->next_write & rb->bufmask] = c;
 		rb->next_write += 1;
-		rb->next_write &= rb->bufmask;
 		rb->next_read += 1;
-		rb->next_read &= rb->bufmask;
 		// No change in freecount
 		}
 	return(rb->freecount);
@@ -63,9 +60,8 @@ uint8_t ringbuffer_getchar(RINGBUF* rb) {
 	else { (rb->freecount)++; }
 
 	// Get the char, then advance the pointer
-	c = rb->buf[rb->next_read];
+	c = rb->buf[rb->next_read & rb->bufmask];
 	rb->next_read += 1;
-	rb->next_read &= rb->bufmask;
 	return(c);
 	}
 
