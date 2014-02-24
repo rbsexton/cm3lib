@@ -12,6 +12,16 @@
 // Unit tests worth writing:
 // Put a char in, get the same one out.   Repeat until wrap
 // Put three in, then pull one out.  Add one.  repeat util wrap.
+//
+// Ringbuffer, v2.   Make things more robust to better live in a world
+// without locking.   Two pointers, reader and writer.  
+// They both get used modulo the pointer size.   Equality means empty.
+// 
+// Do not permit the read and write pointer to ever wrap.   We're going to drop
+// characters when things overflow.   The cost of adjusting pointers to handle that
+// case is just too high.
+//
+// ringbuffer_notempty()
 // 
 
 // #include "ringbuffer.h"
@@ -37,8 +47,23 @@ void ringbuffer_init(RINGBUF* rb, uint8_t* buf, int size) {
 int ringbuffer_free(RINGBUF* rb) {
 	return(rb->freecount);
 	}
+
+// int ringbuffer_used(RINGBUF* rb) {
+//	return(rb->next_write - rb->next_read);
+// 	}
+// int ringbuffer_notempty(RINGBUF* rb) {
+//	return(rb->next_write != rb->next_read);
+// 	}
+
 int ringbuffer_used(RINGBUF* rb) {
 	return(rb->bufsize - rb->freecount);
+	}
+
+// Reset the two pointers to prevent wrap.
+// critial locking must come from outside.
+void ringbuffer_reset(RINGBUF* rb) {
+	rb->next_write -= rb->next_read;
+	rb->next_read  -= rb->next_read;
 	}
 
 // Add a character to a buffer, and return the number
