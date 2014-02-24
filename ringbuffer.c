@@ -36,27 +36,18 @@ void ringbuffer_init(RINGBUF* rb, uint8_t* buf, int size) {
 	rb->buf = buf;
 	rb->bufsize = size;
 	rb->bufmask = size - 1;
-	rb->freecount = size;
 	}
 
-
-// Remember that it cannot fill up.
-// int ringbuffer_free(RINGBUF* rb) {
-// 	return(rb->bufmask -  (rb->next_write - rb->next_read) );
-
+// Remember that it is not allowed to fill up.
 int ringbuffer_free(RINGBUF* rb) {
-	return(rb->freecount);
+	return(rb->bufmask -  (rb->next_write - rb->next_read) );
 	}
 
-// int ringbuffer_used(RINGBUF* rb) {
-//	return(rb->next_write - rb->next_read);
-// 	}
-// int ringbuffer_notempty(RINGBUF* rb) {
-//	return(rb->next_write != rb->next_read);
-// 	}
-
+// There used to be a not-empty check, but it turns out that
+// ringbuffer_used is a bit faster after compilation is over.
+// Used is just a subtract, so the conditional is free.	
 int ringbuffer_used(RINGBUF* rb) {
-	return(rb->bufsize - rb->freecount);
+	return(rb->next_write - rb->next_read);
 	}
 
 // Reset the two pointers to prevent wrap.
@@ -67,34 +58,32 @@ void ringbuffer_reset(RINGBUF* rb) {
 	}
 
 // Add a character to a buffer, and return the number
-// of spaces available.
+// of spaces available.   Note that pre-emption
+// results in false full indication.  
 int ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
-	if ( rb->freecount > 1 ) {
-		rb->buf[rb->next_write & rb->bufmask] = c;
-		(rb->freecount)--;
-		rb->next_write += 1; 
-		}
-	else { // It gets complicated.  Steal one
+	int free = ringbuffer_free(rb);
+	if ( free > 1 ) {
 		rb->buf[rb->next_write & rb->bufmask] = c;
 		rb->next_write += 1;
-		rb->next_read += 1;
-		rb->dropped += 1;
-		// No change in freecount
+		return(free -1); 
 		}
-	return(rb->freecount);
+	else { // If no space, drop it on the floor.
+		return(free);
+		}
 	}
+	
 // Do the converse of add.  
 uint8_t ringbuffer_getchar(RINGBUF* rb) {
 	uint8_t c;
 	// If empty, lie rather than make it worse.
 	// otherwise, theres more room now.
-	if ( rb->freecount >= rb->bufsize ) { return(0); }
-	else { (rb->freecount)++; }
-
-	// Get the char, then advance the pointer
-	c = rb->buf[rb->next_read & rb->bufmask];
-	rb->next_read += 1;
-	return(c);
+	if ( ringbuffer_used(rb) ) { 
+		// Get the char, then advance the pointer
+		c = rb->buf[rb->next_read & rb->bufmask];
+		rb->next_read += 1;
+		return(c);
+		}
+	else return(0);
 	}
 
 
