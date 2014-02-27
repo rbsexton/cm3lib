@@ -65,9 +65,10 @@ int ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
 	if ( free > 1 ) {
 		rb->buf[rb->next_write & rb->bufmask] = c;
 		rb->next_write += 1;
-		return(free -1); 
+		return(free-1); 
 		}
 	else { // If no space, drop it on the floor.
+		rb->dropped++;
 		return(free);
 		}
 	}
