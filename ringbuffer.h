@@ -7,23 +7,30 @@
 #include <stdint.h>
 #endif
 
-struct ringbuf_t {
-	int next_write;
-	int next_read;
-	int dropped;
-	uint8_t* buf; // Pointer to the storage area. 
-	int bufsize;  // Length of the storage area 
-	int bufmask;  // Used for masking the index.
-	};
+/// If the counts are both bigger than this, we'll adjust.
+#define RB_COUNT_OVERFLOW 0x40000000
 
-typedef struct ringbuf_t RINGBUF;
+typedef struct {
+	uint32_t iWrite; 
+	uint32_t iRead;  
+
+	uint32_t Dropped;    /// Record dropped characters
+	uint32_t ResetCount; /// How many times we  
+	
+	uint8_t* Buf; // Pointer to the storage area. 
+	uint32_t BufSize;  // Length of the storage area 
+	uint32_t BufMask;  // Used for masking the index.
+	} RINGBUF;
 
 void ringbuffer_init(RINGBUF* , uint8_t*, int);
+int32_t ringbuffer_free(RINGBUF*);
 
-int ringbuffer_used(RINGBUF*);
-int ringbuffer_free(RINGBUF*);
-
-int ringbuffer_addchar(RINGBUF*, uint8_t);
+int32_t ringbuffer_addchar(RINGBUF*, uint8_t);
 uint8_t ringbuffer_getchar(RINGBUF*); 
+
+
+uint32_t ringbuffer_used(RINGBUF*);
+int  ringbuffer_reset_count(RINGBUF*);
+
 
 
