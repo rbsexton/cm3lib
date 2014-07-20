@@ -45,7 +45,7 @@ uint32_t ringbuffer_used(RINGBUF* rb) {
 
 /// The ring buffers are not allowed to fill up.
 /// That means that the maximal room is BufSize - 1 = BufMask 
-int ringbuffer_free(RINGBUF* rb) {
+int32_t ringbuffer_free(RINGBUF* rb) {
 	return(rb->BufMask - ringbuffer_used(rb));
 	}
 
@@ -55,7 +55,7 @@ int ringbuffer_free(RINGBUF* rb) {
 /// 
 /// If incrementing the write counter makes it equal to 
 /// the read counter, that means that we're full.   Drop it on the floor.
-int ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
+int32_t ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
 	uint32_t iWritePend = rb->iWrite + 1; 
 
 	// In any case, we're going to save the data.  The decision 
