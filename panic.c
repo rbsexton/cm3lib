@@ -8,10 +8,10 @@
 
 uint32_t panic_registers[17]; 
 
-#define PANIC_APSR   (16*4)
-#define PANIC_R15_PC (15*4)
-#define PANIC_R14_LR (14*4)
-#define PANIC_R13_SP (13*4)
+#define PANIC_PSR    64
+#define PANIC_R15_PC 60
+#define PANIC_R14_LR 56
+#define PANIC_R13_SP 52
 
 // A function that makes a register snapshot.
 // It assumes that the link register is stacked
@@ -27,20 +27,23 @@ void panic_snapshot() {
                 ".thumb_func \n\t"
                 "@ harvest the registers \n\t"
 
-				"@ Save a copy of R2 so we can bootstrap\n\t"
-				"PUSH { R2 }\n\t"
-				"LDR R2, =panic_registers\n\t"
-				"STMIA R2, { r0-r1 }\n\t"
-				"MOV r0, r2\n\t"
-				"POP { R2 }\n\t"
+				"@ Snapshot R0 so we get it too\n\t"
+				"PUSH { R0 }\n\t"
+				"LDR R0, =panic_registers\n\t"
+				"STMIA R0, { r0-r12 }\n\t"
 
-				"STMIA R0, { r2-r12 }\n\t"
+				"@ Start filling things in\n\t"
+				"POP { R1 }\n\t"
+				"STR R1, [ R0, #0]\n\t"
+
 				"MOV R1, SP\n\t"
 				"ADD R1, # 4\n\t"
-				"STR R1, [ R0, #0 ]\n\t"
+				"STR R1, [ R0, #52 ]\n\t"
 				
-				"MRS R1, APSR\n\t"
-				"STR R1, [ R0, #12 ]\n\t" 
+				"STR LR, [ R0, #60 ]\n\t"
+				
+				"MRS R1, PSR\n\t"
+				"STR R1, [ R0, #64 ]\n\t" 
 				
 	            : : : "r0","r1","r2" );
 	}
