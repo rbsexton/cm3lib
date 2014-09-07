@@ -15,12 +15,12 @@ void SysTickMSUpdate64(unsigned ms) {
 	SysTickMSVal64 += ms;
 	}
 
-/// Non-privileged/protected.
-/// This is just easier in assembly.
-uint64_t getSysTickMS64() {
-
+/// Here is a generic gadget.
+/// This is just easier in assembly.  Take a pointer to 32-bit stuff 
+/// so the compiler finds the address.
+uint64_t get64BitCounter(uint32_t *counter) {
 	// We have to do a read of the top half, then the bottom, then the second to be safe.
-	__asm( "	ldr r3, =SysTickMSVal64\n"
+	__asm( "	mov r3, r0\n"
 		   "1:  ldr r1, [ r3, #4 ] @ Top Half\n"
 		   "    ldr r0, [ r3, #0 ] @ Bottom Half\n"
 		   "    ldr r2, [ r3, #4 ] @ Make sure top half is unchanged\n"
@@ -28,6 +28,11 @@ uint64_t getSysTickMS64() {
 		   "    bne $1b\n"
 		   " bx lr\n" );
 	return(1); // Never happens.
+	}
+
+/// Non-privileged/protected.
+uint64_t getSysTickMS64() {
+	return(get64BitCounter( (uint32_t *) &SysTickMSVal64 ) );  
 	}
 
 /// Lots of Systick code uses 32-bit numbers.
