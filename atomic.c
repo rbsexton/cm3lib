@@ -8,15 +8,19 @@
 // Note that Interrupts/Excpetions may clear the exclusive monitor, so just retry.
 // This function will always succeed.  
 // Return the result of add.
+// 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// If you compile this without optimization you will get a terrible result.
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 int32_t atomic_add(uint32_t *sem, int32_t delta) {
-	int32_t result, scratch;
+	int32_t result;
 	__asm(	"L: ldrex	%[result], [ %[sem], #0 ]\n\t"
 	       	"add		%[result], %[delta]\n\t"
-			"strex		%[scratch] , %[result], [ %[sem] ]\n\t" 
-			"cmp		%[scratch], #1\n\t"
+			"strex		r3 , %[result], [ %[sem] ]\n\t" 
+			"cmp		r3, #1\n\t"
 			"bne		L\n"
-			: [result] "=&r" (result), [scratch] "=r" (scratch) :
-			  [sem] "r" (sem), [delta] "r" (delta) : );
+			: [result] "=&r" (result) :
+			  [sem] "r" (sem), [delta] "r" (delta) : "r3" );
 
 	return(result);
 	}
