@@ -15,25 +15,7 @@
 .syntax unified
 .section .text 
 
-.global launchuserapp
-.thumb
-.thumb_func
-
-launchuserapp:
-
-	ldr r1, [ r0, #0 ] /* Thats the stack pointer */
-	mov sp, r1
-	 
-	ldr r2, [ r0, #4 ] /* The initial PC */
-	push { r2 }
-	
-	ldr r2, =0xE000ED08 /* VTOR */
-	str r0, [ r2, #0 ]
-	
-	pop { pc }
-		
-.end
-
+@*************************************
 .global LaunchUserAppNoNVIC
 .thumb
 .thumb_func
@@ -42,6 +24,21 @@ LaunchUserAppNoNVIC:
 	ldr r1, [ r0, #0 ] /* Thats the stack pointer */
 	mov sp, r1
 	ldr r2, [ r0, #4 ] /* The initial PC */
-	push { r2 }
-	pop  { pc }
+	bx  r2
 .end
+
+@*************************************
+.global LaunchUserAppUpdateNVIC
+.thumb
+.thumb_func
+
+LaunchUserAppUpdateNVIC:
+	ldr r1, [ r0, #0 ] /* Stack pointer */
+	mov sp, r1
+	ldr r2, [ r0, #4 ] /* Initial PC */
+	push { r2 }
+	ldr r2, =0xE000ED08 /* VTOR */
+	str r0, [ r2, #0 ]
+	pop { pc }
+.end
+
