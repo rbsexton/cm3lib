@@ -25,7 +25,6 @@ LaunchUserAppNoNVIC:
 	mov sp, r1
 	ldr r2, [ r0, #4 ] /* The initial PC */
 	bx  r2
-.end
 
 @*************************************
 .global LaunchUserAppUpdateNVIC
