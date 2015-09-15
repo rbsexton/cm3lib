@@ -49,7 +49,6 @@ int32_t ringbuffer_free(RINGBUF* rb) {
 	return(rb->BufMask - ringbuffer_used(rb));
 	}
 
-
 /// Add a character to the ringbuffer, and return the 
 /// number of characters free in the ring buffer.
 /// 
@@ -96,3 +95,38 @@ void ringbuffer_reset(RINGBUF* rb) {
 	rb->ResetCount++;
 	}
 
+/// -----------------------------------------------------------
+/// Bulk operations.
+/// There are some conditions where we want to bypass the
+/// character-at-a-time aspect of things and do a bulk copy
+/// Networking and USB are the primary cases.
+/// So there will be one or two bulk operatons - one to collect
+/// all data up to the end of the storage area, and one to
+/// collect everything from the beginning.
+/// -----------------------------------------------------------
+
+// Pretty easy.   Just get the pointer to the next byte.
+uint8_t *ringbuffer_getbulkpointer(RINGBUF* rb) {
+	if ( ringbuffer_used(rb) ) { 
+		return(&(rb->Buf[rb->iRead & rb->BufMask]));
+		}
+	else return(0);
+	}
+
+/// How many bytes are left?
+int32_t ringbuffer_getbulkcount(RINGBUF* rb) {
+	int used = ringbuffer_used(rb);
+	if ( used ) {
+		// If it points to 0xff we have 0x100 - 0xff = 1 byte in the queue
+		int32_t max = rb->BufSize-(rb->iRead & rb->BufMask);
+		
+		if ( max >= used) return(used);
+		else return(max);
+		}
+	else return(used);
+	}
+	
+/// This one needs to run on trust.	
+void ringbuffer_bulkremove(RINGBUF* rb, int count) {
+	rb->iRead += count;
+	}
