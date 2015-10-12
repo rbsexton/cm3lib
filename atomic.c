@@ -4,8 +4,7 @@
 
 #include <stdint.h>
 
-
-// Note that Interrupts/Excpetions may clear the exclusive monitor, so just retry.
+// Note that Interrupts/Exceptions may clear the exclusive monitor, so just retry.
 // This function will always succeed.  
 // Return the result of add.
 // 
@@ -19,6 +18,7 @@ int32_t atomic_add(uint32_t *sem, int32_t delta) {
 			"strex		r3 , %[result], [ %[sem] ]\n\t" 
 			"cmp		r3, #1\n\t"
 			"bne		L\n"
+			"dmb		\n" // Required by Architecture. (DAI0321A)
 			: [result] "=&r" (result) :
 			  [sem] "r" (sem), [delta] "r" (delta) : "r3" );
 
