@@ -30,7 +30,7 @@ uint8_t ringbuffer_getchar(RINGBUF*);
 
 uint8_t *ringbuffer_getbulkpointer(RINGBUF*); 
 int32_t ringbuffer_getbulkcount(RINGBUF*); 
-void    ringbuffer_bulkremove(RINGBUF*, int32_t); 
+void    ringbuffer_bulkremove(RINGBUF*, int count); 
 
 uint32_t ringbuffer_used(RINGBUF*);
 int  ringbuffer_reset_count(RINGBUF*);

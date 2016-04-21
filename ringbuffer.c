@@ -53,21 +53,21 @@ int32_t ringbuffer_free(RINGBUF* rb) {
 /// number of characters free in the ring buffer.
 /// 
 /// If incrementing the write counter makes it equal to 
-/// the read counter, that means that we're full.   Drop it on the floor.
+/// the read counter, that means that we're full.   Reject it and
+/// return -1 so that the producer can retry.
 int32_t ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
 	uint32_t iWritePend = rb->iWrite + 1; 
 
-	// In any case, we're going to save the data.  The decision 
-	// is whether or not to advance the pointers.
-	rb->Buf[rb->iWrite & rb->BufMask] = c; 
-
+	// Don't clobber the existing data.
 	if ( (iWritePend & rb->BufMask) != (rb->iRead & rb->BufMask) ) {
+		rb->Buf[rb->iWrite & rb->BufMask] = c; 
 		rb->iWrite = iWritePend;
+		return(ringbuffer_free(rb));
 		}
-	else {
+	else { // Back-pressure.
 		rb->Dropped++;
+		return(-1);
 		}
-	return(ringbuffer_free(rb));
 	}
 
 /// Pull a character out of the ringbuffer
