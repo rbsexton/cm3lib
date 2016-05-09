@@ -1,9 +1,9 @@
 // 
-// Ringbuffer routines tailored to my particular needs.
-// Copyright(C) 2012 Robert Sexton
+// Lockless Ringbuffer routines
+// Copyright(C) 2012-2016 Robert Sexton
 //
 // Basic Model - Struct with external storage
-// - No interrupt protection.  Thats externally supplied.
+// - Lockless - No Irq protection required.
 // - Dynamically created so that the same code maintains multiple buffers.
 // - Counted contents so you can put in a big chunk.
 // - Requires power of two sizing.
@@ -12,11 +12,10 @@
 // without locking.   Two pointers, reader and writer.  
 // They both get used modulo the pointer size.   Equality means empty.
 // If the writer pre-empts the reader, it'll wrongly assume fullness.  No problem.
-// If the reader pre-empts the writer, it mighy wrongly assume empty.  No Problem.
+// If the reader pre-empts the writer, it might wrongly assume empty.  No Problem.
 //  
-// Do not permit the read and write pointer to ever wrap.   We're going to drop
-// characters when things overflow.   The cost of adjusting pointers to handle that
-// case is just too high.
+// Do not permit the read and write pointer to ever wrap.   Return -1 rather than
+// dropping characters.   The user must decide what to do in that case.
 // 
 
 #include <stdint.h>
