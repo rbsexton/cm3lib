@@ -45,7 +45,7 @@ uint32_t ringbuffer_used(RINGBUF* rb) {
 
 /// The ring buffers are not allowed to fill up.
 /// That means that the maximal room is BufSize - 1 = BufMask 
-int32_t ringbuffer_free(RINGBUF* rb) {
+uint32_t ringbuffer_free(RINGBUF* rb) {
 	return(rb->BufMask - ringbuffer_used(rb));
 	}
 

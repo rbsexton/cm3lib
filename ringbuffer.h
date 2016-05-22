@@ -23,7 +23,8 @@ typedef struct {
 	} RINGBUF;
 
 void ringbuffer_init(RINGBUF* , uint8_t*, int);
-int32_t ringbuffer_free(RINGBUF*);
+uint32_t ringbuffer_used(RINGBUF*);
+uint32_t ringbuffer_free(RINGBUF*);
 
 int32_t ringbuffer_addchar(RINGBUF*, uint8_t);
 uint8_t ringbuffer_getchar(RINGBUF*); 
@@ -32,7 +33,6 @@ uint8_t *ringbuffer_getbulkpointer(RINGBUF*);
 int32_t ringbuffer_getbulkcount(RINGBUF*); 
 void    ringbuffer_bulkremove(RINGBUF*, int count); 
 
-uint32_t ringbuffer_used(RINGBUF*);
 int  ringbuffer_reset_count(RINGBUF*);
 
 
