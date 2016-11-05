@@ -9,8 +9,9 @@
 @ 
 
 @*************************************************************
-@ LaunchUserAppNoNVIC(uint32_t *addr) 
+@ LaunchUserAppNoNVIC(uint32_t *addr, uint32_t *runtimep) 
 @	R0: Starting address of the user app in memory.
+@	R1: Pointer to runtime data to share with forth.
 @ Loads up the stack pointer and the initial PC from memory
 @ and starts things off.
 @ Returns
@@ -25,15 +26,17 @@
 
 LaunchUserAppNoNVIC:
 	cpsid i 
-	ldr r1, [ r0, #0 ] /* Thats the stack pointer */
-	mov sp, r1
+	ldr r2, [ r0, #0 ] /* Thats the stack pointer */
+	mov sp, r2
 	ldr r2, [ r0, #4 ] /* The initial PC */
+        mov r0, r1         /* Put the RT Link in the right spot */
 	cpsie i
 	bx  r2
 
 @*************************************************************
 @ LaunchUserAppNoSPNoNVIC(uint32_t *addr) 
 @	R0: Starting address of the user app in memory.
+@	R1: Pointer to runtime data to share with forth.
 @ Loads up the initial PC from memory and starts things off.
 @ This could be replaced with a bit of inline assembly, but 
 @ its nicer to have a compatible thing.
@@ -49,7 +52,8 @@ LaunchUserAppNoNVIC:
 .thumb_func
 
 LaunchUserAppNoSPNoNVIC:
-	ldr r2, [ r0, #4 ] /* The initial PC */
+        ldr r2, [ r0, #4 ] /* The initial PC */
+        mov r0, r1  
 	bx  r2
 
 @*************************************
@@ -58,12 +62,17 @@ LaunchUserAppNoSPNoNVIC:
 .thumb_func
 
 LaunchUserAppUpdateNVIC:
-	ldr r1, [ r0, #0 ] /* Stack pointer */
-	mov sp, r1
-	ldr r2, [ r0, #4 ] /* Initial PC */
-	push { r2 }
+	cpsid i 
+	ldr r2, [ r0, #0 ] /* Stack pointer */
+        mov sp, r2
+
 	ldr r2, =0xE000ED08 /* VTOR */
 	str r0, [ r2, #0 ]
-	pop { pc }
-.end
+                 
+        ldr r2, [ r0, #4 ] /* Initial PC */
+        mov r0, r1 /* Runtime link */                  
+
+        cpsie i 
+        bx r2
+ .end
 
