@@ -70,8 +70,8 @@ int32_t ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
 	}
 
 /// Pull a character out of the ringbuffer
-/// Return zero if there is nothing in there. 
-uint8_t ringbuffer_getchar(RINGBUF* rb) {
+/// Return -1 if there is nothing in there. 
+int ringbuffer_getchar(RINGBUF* rb) {
 	uint8_t c;
 	if ( ringbuffer_used(rb) ) { 
 		// Get the char, then advance the pointer
@@ -79,7 +79,7 @@ uint8_t ringbuffer_getchar(RINGBUF* rb) {
 		rb->iRead += 1;
 		return(c);
 		}
-	else return(0);
+	else return(-1);
 	}
 
 /// Reset the two pointers to prevent wrap.
