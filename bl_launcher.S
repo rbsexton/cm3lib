@@ -9,22 +9,21 @@
 @ 
 
 @*************************************************************
-@ LaunchUserAppNoNVIC(uint32_t *addr, uint32_t *runtimep) 
+@ LaunchUserApp(uint32_t *appaddr, uint32_t *runtimep) 
 @	R0: Starting address of the user app in memory.
 @	R1: Pointer to runtime data to share with forth.
 @ Loads up the stack pointer and the initial PC from memory
-@ and starts things off.
-@ Returns
+@ and starts things off.   Passes in the runtime pointer.
 @	No return 
 .syntax unified
 .section .text 
 
 @*************************************
-.global LaunchUserAppNoNVIC
+.global LaunchUserApp
 .thumb
 .thumb_func
 
-LaunchUserAppNoNVIC:
+LaunchUserApp:
 	cpsid i 
 	ldr r2, [ r0, #0 ] /* Thats the stack pointer */
 	mov sp, r2
@@ -34,27 +33,34 @@ LaunchUserAppNoNVIC:
 	bx  r2
 
 @*************************************************************
-@ LaunchUserAppNoSPNoNVIC(uint32_t *addr) 
+@ LaunchUserAppNoSP(uint32_t *appaddr, uint32_t *runtimep) 
 @	R0: Starting address of the user app in memory.
 @	R1: Pointer to runtime data to share with forth.
 @ Loads up the initial PC from memory and starts things off.
-@ This could be replaced with a bit of inline assembly, but 
-@ its nicer to have a compatible thing.
-@ but 
-@ Returns
+@ Don't alter the stack pointer.
 @	No return 
 .syntax unified
 .section .text 
 
 @*************************************
-.global LaunchUserAppNoSPNoNVIC
+.global LaunchUserAppNoSP
 .thumb
 .thumb_func
 
-LaunchUserAppNoSPNoNVIC:
+LaunchUserAppNoSP:
         ldr r2, [ r0, #4 ] /* The initial PC */
         mov r0, r1  
 	bx  r2
+
+@*************************************************************
+@ LaunchUserAppUpdateNVIC(uint32_t *appaddr, uint32_t *runtimep) 
+@	R0: Starting address of the user app in memory.
+@	R1: Pointer to runtime data to share with forth.
+@ Loads up the initial PC from memory and starts things off.
+@ Adjust the VTOR register in the NVIC so that the app
+@ can use the interrupt vectors.
+@ Doesnt return
+
 
 @*************************************
 .global LaunchUserAppUpdateNVIC
