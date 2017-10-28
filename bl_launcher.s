@@ -6,7 +6,8 @@
 @
 @ In other contexts, this could be considered a normal part of 
 @ operating a bootloader.
-@ 
+@
+@ These routines have to be used with care. 
 
 @*************************************************************
 @ LaunchUserApp(uint32_t *appaddr, uint32_t *runtimep) 
@@ -29,6 +30,29 @@ LaunchUserApp:
 	mov sp, r2
 	ldr r2, [ r0, #4 ] /* The initial PC */
         mov r0, r1         /* Put the RT Link in the right spot */
+	cpsie i
+	bx  r2
+
+@*************************************************************
+@ LaunchUserAppThread(uint32_t *appaddr, uint32_t *runtimep) 
+@	R0: Starting address of the user app in memory.
+@	R1: Pointer to runtime data to share with forth.
+@ Loads up the stack pointer and the initial PC from memory
+@ and starts things off.   Passes in the runtime pointer.
+@	No return 
+
+@*************************************
+.global LaunchUserAppThread
+LaunchUserAppThread:
+	cpsid i 
+	ldr r2, [ r0, #0 ] /* Thats the stack pointer */
+	msr psp, r2
+	movs r3, # 2
+	msr control, r3
+	isb					// Per the Arm Docs.
+
+	ldr r2, [ r0, #4 ] /* The initial PC */
+	mov r0, r1         /* Put the RT Link in the right spot */
 	cpsie i
 	bx  r2
 
