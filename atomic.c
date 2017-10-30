@@ -1,9 +1,13 @@
-/// @file semaphore.
+/// @file atomic.c
 /// 
-/// LDREX/STREX based semaphore operators
+/// @brief LDREX/STREX based semaphore operators
 
 #include <stdint.h>
 
+/// @brief Do an atomic add.
+/// @return the new value
+/// @param *sem pointer to the underlying value
+/// @param delta how much to add
 // Note that Interrupts/Exceptions may clear the exclusive monitor, so just retry.
 // This function will always succeed.  
 // Return the result of add.

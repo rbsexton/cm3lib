@@ -1,5 +1,6 @@
-/*
- * bresenham.c
+/**
+ * @file bresenham.c
+ * @brief Interpolate using Bresenhams line drawing algorothm.
  * Interpolate one point at a time.
  * 
  * See: http://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm

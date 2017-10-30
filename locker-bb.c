@@ -1,13 +1,13 @@
-/// @file locker.c
+/// @file locker-bb.c
 /// @brief Bitband-based locking
 /// @author Robert Sexton
-/// Advisory locking functions that use the Cortex-M3 bit-banding scheme 
+/// @details Advisory locking functions that use the Cortex-M3 bit-banding scheme 
 ///
 
 // Cast to turn and address into an implicit access, and force it volatile
 #define VWRAP(addr) (*((volatile unsigned long *)(addr)))
 
-/// Convert an address, bit pair to the bit-banded address
+/// @brief Convert an address, bit pair to the bit-banded address
 /// @param Address of the word
 /// @param Bit number
 /// @return the calculated address
@@ -19,7 +19,7 @@ unsigned long bitbanded_address(unsigned long addr,int bit) {
 		   ((bit) << 2) );
 	}
                             
-/// Try to get an advisory lock.
+/// @brief Try to get an advisory lock.
 /// @param Address of the word to use for locking
 /// @param Bit number to use for locking purposes
 /// @return
@@ -52,7 +52,8 @@ int get_bitbanded_lock(unsigned long lockaddr, int bit) {
 
 	}
 
-/// Release the lock.  There is no need for checking, just do it.
+/// @brief Release the lock.
+/// There is no need for checking, just do it.
 /// @param Address of the word to use for locking
 /// @param Bit number to use for locking purposes
 /// @return
