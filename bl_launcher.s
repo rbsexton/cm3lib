@@ -7,7 +7,9 @@
 @ In other contexts, this could be considered a normal part of 
 @ operating a bootloader.
 @
-@ These routines have to be used with care. 
+
+.syntax unified
+.section .text 
 
 @*************************************************************
 @ LaunchUserApp(uint32_t *appaddr, uint32_t *runtimep) 
@@ -16,14 +18,9 @@
 @ Loads up the stack pointer and the initial PC from memory
 @ and starts things off.   Passes in the runtime pointer.
 @	No return 
-.syntax unified
-.section .text 
 
 @*************************************
 .global LaunchUserApp
-.thumb
-.thumb_func
-
 LaunchUserApp:
 	cpsid i 
 	ldr r2, [ r0, #0 ] /* Thats the stack pointer */
@@ -63,13 +60,9 @@ LaunchUserAppThread:
 @ Loads up the initial PC from memory and starts things off.
 @ Don't alter the stack pointer.
 @	No return 
-.syntax unified
-.section .text 
 
 @*************************************
 .global LaunchUserAppNoSP
-.thumb
-.thumb_func
 
 LaunchUserAppNoSP:
         ldr r2, [ r0, #4 ] /* The initial PC */
@@ -81,15 +74,14 @@ LaunchUserAppNoSP:
 @	R0: Starting address of the user app in memory.
 @	R1: Pointer to runtime data to share with forth.
 @ Loads up the initial PC from memory and starts things off.
-@ Adjust the VTOR register in the NVIC so that the app
-@ can use the interrupt vectors.
-@ Doesnt return
-
+@ Adjust the VTOR register in the NVIC so that the app can use
+@ the interrupt vectors.
+@
+@ The Cortex-M0 has no VTOR register.
+@
 
 @*************************************
 .global LaunchUserAppUpdateNVIC
-.thumb
-.thumb_func
 
 LaunchUserAppUpdateNVIC:
 	cpsid i 
