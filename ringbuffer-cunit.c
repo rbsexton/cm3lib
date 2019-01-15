@@ -25,6 +25,17 @@
  *                      asserts       5       5       5       0
  */
 
+ // Update for new and improved ringbuffer tests.
+ // The semantics have changed since the original design.
+ // Now, for starters, wrap is not supported.   The routines will
+ // not overflow data thats already in there.    The other internal
+ // change is that rather than two modulo pointers, we have 32-bit
+ // indices that get masked down, so that you can always compare
+ // the read and write indices.
+
+ // Secondly, there is support for bulk operations.   Those
+ // are useful for aggregating small writes into network buffers.
+
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -35,7 +46,7 @@
 #include "ringbuffer.h"
 
 #define BUFFERSIZE 16384
-#define RINGSIZE 64
+#define RINGSIZE 16
 
 const uint8_t randchars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
 uint8_t bufcontents[RINGSIZE];
@@ -102,6 +113,8 @@ void testSINGLES(void) {
 
 		// Make sure we return the right thing.
 		CU_ASSERT( ringbuffer_addchar(&ring, cin) == RINGSIZE-2 )
+    CU_ASSERT( ring.iWrite > ring.iRead )
+
 		CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-2);
 
 		// Nothing should be getting Dropped
@@ -109,154 +122,75 @@ void testSINGLES(void) {
 		CU_ASSERT(ringbuffer_used(&ring) == 1);
 
 		cout = ringbuffer_getchar(&ring);
-		
+
 		CU_ASSERT(ring.iWrite == ring.iRead );
 		CU_ASSERT(ringbuffer_used(&ring) == 0);
 		CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-1);
-	
+
 		CU_ASSERT(cin == cout);
 		}
 
 	}
 
-
-void testUNDERFLOW(void) {
+void testUnderFlow(void) {
 
 	int i;
-	uint8_t cin, cout;
+	uint8_t cin;
+  int cout;
 
 	// Push a lot of bytes through.  Check lots of stuff
 	for (i=0; i < 10; i++) {
 		cin = source[i];
 		ringbuffer_addchar(&ring, cin);
 		}
+  CU_ASSERT( ring.iWrite > ring.iRead )
 
 	for (i=0; i < 10; i++) {
 		cout = ringbuffer_getchar(&ring);
 		CU_ASSERT(cout == source[i]);
 		}
 
+  CU_ASSERT(ring.iWrite == ring.iRead );
+
+
 	for (i=0; i < 10; i++) {
 		cout = ringbuffer_getchar(&ring);
-		CU_ASSERT(cout == 0);
+		CU_ASSERT(cout == -1);
 		}
 
 	}
 
+// Drain a buffer and tell us how many operations it took.
+int drain() {
+  int count = 0;
+  int ret;
+  do {
+    count++;
+    ret = ringbuffer_getchar(&ring);
+    } while ( count < 2*RINGSIZE && ret != -1 );
+  return(count);
+  }
 
-void testPREPUSHkern(int divide) {
-	int i;
+void testOverflow() {
+
+	int i, count, ret;
 	uint8_t cin, cout;
 
-	CU_ASSERT(ringbuffer_used(&ring) == 0);
-	CU_ASSERT(ring.iRead == ring.iWrite);
+  // Drain the buffer, make sure it takes a reasonable number of characters.
+  count = drain();
+  CU_ASSERT(count <= RINGSIZE);
 
-	// Pre-Push 10 chars
-	for (i=0; i < divide; i++) {
-		cin = source[i];
+  // Now fill it up, and verify that we can insert the correct number
+  // of characters.
 
-		CU_ASSERT(ringbuffer_used(&ring) == i);
-		CU_ASSERT( ringbuffer_addchar(&ring, cin) == ( (RINGSIZE - 2) - i) );
-		CU_ASSERT(ringbuffer_used(&ring) == i+1);
+  count = 0;
+  do {
+    uint8_t cin = count & 0xFF;
+    ret = ringbuffer_addchar(&ring, cin);
+    if ( ret >= 0 ) count++;
 
-		// CU_ASSERT(ring.iWrite >= 0 && ring.iWrite < RINGSIZE);
-		// CU_ASSERT(ring.iRead >= 0 && ring.iRead < RINGSIZE);
-		// CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-(i+1));
-		}
-
-	for (i=divide; i < 1123; i++) {
-		cin = source[i];
-
-		cout = ringbuffer_getchar(&ring);
-		CU_ASSERT(ringbuffer_used(&ring) == (RINGSIZE));
-		
-		
-		//CU_ASSERT(ring.iRead >= 0 && ring.iRead < RINGSIZE);
-		//CU_ASSERT(ringbuffer_used(&ring) == (divide-1));
-		//CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-(divide-1));
-		// CU_ASSERT(cout == source[i-divide]);
-
-		ringbuffer_addchar(&ring, cin);
-		
-		// CU_ASSERT(ring.iWrite >= 0 && ring.iWrite < RINGSIZE);
-		// CU_ASSERT(ring.iRead >= 0 && ring.iRead < RINGSIZE);
-		// CU_ASSERT(ringbuffer_used(&ring) == divide);
-		// CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-(divide));
-
-		}
-
-	// Drain it.
-	for (i=divide; i > 0 ; i--) {
-		// CU_ASSERT(ring.iWrite >= 0 && ring.iWrite < RINGSIZE);
-		// CU_ASSERT(ring.iRead >= 0 && ring.iRead < RINGSIZE);
-		// CU_ASSERT(ringbuffer_used(&ring) == i);
-		// CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-(i));
-		cout = ringbuffer_getchar(&ring);
-		// CU_ASSERT(ringbuffer_used(&ring) == i-1);
-		// CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-(i-1));
-		}
-	}
-
-
-void testPREPUSH() {
-	int i;
-	for (i = 1; i < RINGSIZE; i++) {
-		testPREPUSHkern(i);
-		}
-	}
-
-
-void testWRAP() {
-
-	int i;
-	uint8_t cin, cout;
-	
-	printf("\n");
-	// Fill it up and force a wrap.  For a 32-byte buffer,
-	// over-write should start at when you write the 32nd byte.
-	for (i=0; i < RINGSIZE-1; i++) {
-		cin = source[i];
-		CU_ASSERT(ring.iWrite >= 0 && ring.iWrite < RINGSIZE);
-		CU_ASSERT(ring.iRead  >= 0 && ring.iRead < RINGSIZE);
-		CU_ASSERT(ringbuffer_used(&ring) == i );
-		CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-(i) );
-
-		ringbuffer_addchar(&ring, cin);
-		putchar(cin);
-
-		CU_ASSERT(ring.iWrite >= 0 && ring.iWrite < RINGSIZE);
-		CU_ASSERT(ring.iRead  >= 0 && ring.iRead < RINGSIZE);
-		CU_ASSERT(ringbuffer_used(&ring) == i+1);
-		CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-(i+1));
-		}
-
-	for (i=RINGSIZE-1; i < RINGSIZE*2; i++) {
-		cin = source[i];
-		CU_ASSERT(ring.iWrite >= 0 && ring.iWrite < RINGSIZE);
-		CU_ASSERT(ring.iRead  >= 0 && ring.iRead < RINGSIZE);
-		CU_ASSERT(ringbuffer_used(&ring) == RINGSIZE-1 );
-		CU_ASSERT(ringbuffer_free(&ring) == 1 );
-
-		ringbuffer_addchar(&ring, cin);
-		putchar(cin);
-		}
-
-	printf("\n");
-	// Drain it and check as we go.
-	// Wrap starts happening at RINGSIZE-1
-	for (i=0; i < RINGSIZE-1; i++) {
-		CU_ASSERT(ring.iWrite >= 0 && ring.iWrite < RINGSIZE);
-		CU_ASSERT(ring.iRead  >= 0 && ring.iRead < RINGSIZE);
-		CU_ASSERT(ringbuffer_used(&ring) == (RINGSIZE-1)-i);
-		CU_ASSERT(ringbuffer_free(&ring) == i+1);
-
-		cout = ringbuffer_getchar(&ring);
-		CU_ASSERT(cout == source[i+RINGSIZE+1]);
-
-		putchar(cout);
-
-		}
-	printf("\n");
+  } while(ret && count < 2*RINGSIZE);
+  CU_ASSERT(count == RINGSIZE -1);
 	}
 
 
@@ -265,7 +199,7 @@ void testWRAP() {
  * CUnit error code on failure.
  */
 int main() {
-	
+
 	int rcode;
 	int i;
 	CU_pSuite pSuite = NULL;
@@ -288,10 +222,8 @@ int main() {
 
 	rcode = (NULL == CU_add_test(pSuite, "Test of fresh structure", testNEW)) ||
         	(NULL == CU_add_test(pSuite, "push/get 1000 chars", testSINGLES)) ||
-        	(NULL == CU_add_test(pSuite, "underflow ", testUNDERFLOW)) ||
-        	(NULL == CU_add_test(pSuite, "push/get 1000 chars with pre-push", testPREPUSH) ||
-        	(NULL == CU_add_test(pSuite, "Wrap-Around test", testWRAP))
-		);
+        	(NULL == CU_add_test(pSuite, "underflow ", testUnderFlow)) ||
+        	(NULL == CU_add_test(pSuite, "Overflow test", testOverflow)) ;
 
    if ( rcode ) {
       CU_cleanup_registry();
@@ -304,4 +236,3 @@ int main() {
    CU_cleanup_registry();
    return CU_get_error();
 }
-
