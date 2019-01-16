@@ -120,10 +120,10 @@ void testSINGLES(void) {
 		CU_ASSERT(ring.iWrite == ring.iRead );
 
 		// Make sure we return the right thing.
-		CU_ASSERT( ringbuffer_addchar(&ring, cin) == RINGSIZE-2 )
+		CU_ASSERT( ringbuffer_addchar(&ring, cin) == FULLSIZE-1 )
     CU_ASSERT( ring.iWrite > ring.iRead )
 
-		CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-2);
+		CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE-1);
 
 		// Nothing should be getting Dropped
 		CU_ASSERT( ring.Dropped == 0 );
@@ -198,7 +198,6 @@ void testOverflow() {
     uint8_t cin = count & 0xFF;
     ret = ringbuffer_addchar(&ring, cin);
     if ( ret >= 0 ) count++;
-
   } while(ret && count < 2*RINGSIZE);
   CU_ASSERT(count == FULLSIZE);
   // Make sure that it got recorded as dropped.
@@ -232,6 +231,41 @@ void doPush(int count) {
     }
   }
 
+void doPushBulkRemove(int count) {
+
+  CU_ASSERT( ringbuffer_free(&ring) == FULLSIZE);
+
+  for ( int i = 0; i < count; i++) {
+    ringbuffer_addchar(&ring,randchars[i]);
+    }
+
+  CU_ASSERT( ringbuffer_free(&ring) == (FULLSIZE - count));
+  CU_ASSERT( ringbuffer_used(&ring) == count);
+
+  // This will take up to two passes.
+  for (int i=0; i < 2; i++ ) {
+    int before   = ringbuffer_used(&ring);
+    int howmuch = ringbuffer_getbulkcount(&ring);
+    printf("bulkc=%d ",howmuch);
+    if ( howmuch == 0 ) break;
+    CU_ASSERT( howmuch <= FULLSIZE );
+    uint8_t *start = ringbuffer_getbulkpointer(&ring);
+
+    // It had better match!
+    int ret = memcmp(start,randchars,howmuch);
+    CU_ASSERT( ret == 0);
+    if ( ret != 0 ) {
+        printf("Compare Fail!");
+        return;
+        }
+    ringbuffer_bulkremove(&ring,howmuch);
+    CU_ASSERT( ringbuffer_used(&ring) == ( before - howmuch ) );
+
+    }
+
+  CU_ASSERT( ring.iWrite == ring.iRead );
+  }
+
 // Find a random length of the right size > 0 && <= max
 static int next_rand(int max) {
   int val;
@@ -262,7 +296,26 @@ void testRandAdd() {
     CU_ASSERT( ring.iWrite == ring.iRead );
     }
 
+  // Do it again, with the bulk remove operator.
+  srandom(0); // Start with a known seed value.
+  drain(); // Known state
+  for (int i=0; i < 2; i++) {
+    int max = ringbuffer_free(&ring);
+    int size = next_rand(max);
+    printf("%02d/%02d ",size,max);
+    // dump_ring();
+
+    CU_ASSERT( max > 0 );
+
+    doPushBulkRemove(size);
+    CU_ASSERT( ring.iWrite == ring.iRead );
+    }
+
   }
+
+
+
+
 
 /* The main() function for setting up and running the tests.
  * Returns a CUE_SUCCESS on successful running, another
