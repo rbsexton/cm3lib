@@ -60,7 +60,7 @@ RINGBUF ring;
 // A Dump that assumes printable data.
 void dump_ring() {
   for ( int i; i<RINGSIZE; i++) printf("%c",bufcontents[i]);
-  printf("\n");
+  printf(" ");
 }
 
 uint8_t* makerandbuffer() {
@@ -242,17 +242,25 @@ void doPushBulkRemove(int count) {
   CU_ASSERT( ringbuffer_free(&ring) == (FULLSIZE - count));
   CU_ASSERT( ringbuffer_used(&ring) == count);
 
+  uint8_t const *checkchars = randchars;
+
   // This will take up to two passes.
   for (int i=0; i < 2; i++ ) {
     int before   = ringbuffer_used(&ring);
     int howmuch = ringbuffer_getbulkcount(&ring);
-    printf("bulkc=%d ",howmuch);
+
     if ( howmuch == 0 ) break;
+
+    printf("bulkc=%02d ",howmuch);
+    dump_ring();
+
     CU_ASSERT( howmuch <= FULLSIZE );
     uint8_t *start = ringbuffer_getbulkpointer(&ring);
 
     // It had better match!
-    int ret = memcmp(start,randchars,howmuch);
+    int ret = memcmp(start,checkchars,howmuch);
+    checkchars+= howmuch; // Sliding window...
+    memset(start, '*', howmuch); // Scrub for debug.
     CU_ASSERT( ret == 0);
     if ( ret != 0 ) {
         printf("Compare Fail!");
@@ -260,7 +268,6 @@ void doPushBulkRemove(int count) {
         }
     ringbuffer_bulkremove(&ring,howmuch);
     CU_ASSERT( ringbuffer_used(&ring) == ( before - howmuch ) );
-
     }
 
   CU_ASSERT( ring.iWrite == ring.iRead );
@@ -277,12 +284,13 @@ static int next_rand(int max) {
 
 // Push a random number of characters.
 void testRandAdd() {
+  printf("Chars ");
   srandom(0); // Start with a known seed value.
   drain(); // Known state
   // Fill it with known data.
   for (int i=0; i<RINGSIZE;i++) bufcontents[i] = '_';
 
-  printf("before: iWrite=%02d, iRead=%02d ",ring.iWrite,ring.iRead);
+  // printf("before: iWrite=%02d, iRead=%02d ",ring.iWrite,ring.iRead);
 
   for (int i=0; i < 50; i++) {
     int max = ringbuffer_free(&ring);
@@ -296,19 +304,26 @@ void testRandAdd() {
     CU_ASSERT( ring.iWrite == ring.iRead );
     }
 
+  printf("Bulk ");
+  printf("\n  before: iWrite=%02d, iRead=%02d\n",ring.iWrite,ring.iRead);
+
   // Do it again, with the bulk remove operator.
   srandom(0); // Start with a known seed value.
   drain(); // Known state
-  for (int i=0; i < 2; i++) {
+  CU_ASSERT( ringbuffer_used(&ring) == 0 );
+  for (int i=0; i<RINGSIZE;i++) bufcontents[i] = '_';
+
+  for (int i=0; i < 50; i++) {
     int max = ringbuffer_free(&ring);
     int size = next_rand(max);
-    printf("%02d/%02d ",size,max);
-    // dump_ring();
+    printf("%03d %02d/%02d ",i,size,max);
+    dump_ring();
 
     CU_ASSERT( max > 0 );
 
     doPushBulkRemove(size);
     CU_ASSERT( ring.iWrite == ring.iRead );
+    printf("\n");
     }
 
   }
