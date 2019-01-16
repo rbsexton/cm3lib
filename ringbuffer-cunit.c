@@ -48,12 +48,20 @@
 #define BUFFERSIZE 16384
 #define RINGSIZE 16
 
+#define FULLSIZE (RINGSIZE-1)
+
+
 const uint8_t randchars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
 uint8_t bufcontents[RINGSIZE];
 uint8_t* source;
 uint8_t* dest;
 RINGBUF ring;
 
+// A Dump that assumes printable data.
+void dump_ring() {
+  for ( int i; i<RINGSIZE; i++) printf("%c",bufcontents[i]);
+  printf("\n");
+}
 
 uint8_t* makerandbuffer() {
         uint8_t* buf;
@@ -90,7 +98,7 @@ int clean_suite1(void)
 
 /* Start adding tests. */
 void testNEW(void) {
-	CU_ASSERT(ringbuffer_free(&ring) == (RINGSIZE-1) );
+	CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE );
 	CU_ASSERT(ringbuffer_used(&ring) == 0);
 	CU_ASSERT(ring.iWrite == 0 );
 	CU_ASSERT(ring.iRead == 0 );
@@ -125,7 +133,7 @@ void testSINGLES(void) {
 
 		CU_ASSERT(ring.iWrite == ring.iRead );
 		CU_ASSERT(ringbuffer_used(&ring) == 0);
-		CU_ASSERT(ringbuffer_free(&ring) == RINGSIZE-1);
+		CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE);
 
 		CU_ASSERT(cin == cout);
 		}
@@ -176,6 +184,8 @@ void testOverflow() {
 	int i, count, ret;
 	uint8_t cin, cout;
 
+  int dropped_before = ring.Dropped;
+
   // Drain the buffer, make sure it takes a reasonable number of characters.
   count = drain();
   CU_ASSERT(count <= RINGSIZE);
@@ -190,9 +200,69 @@ void testOverflow() {
     if ( ret >= 0 ) count++;
 
   } while(ret && count < 2*RINGSIZE);
-  CU_ASSERT(count == RINGSIZE -1);
+  CU_ASSERT(count == FULLSIZE);
+  // Make sure that it got recorded as dropped.
+  CU_ASSERT(ring.Dropped = (dropped_before+1) );
+
+  // Clean up.
+  drain();
+  CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE);
 	}
 
+
+// Add a random number of characters, and then
+// pull them all out.   Make sure that things match.
+
+void doPush(int count) {
+
+  CU_ASSERT( ringbuffer_free(&ring) == FULLSIZE);
+
+  for ( int i = 0; i < count; i++) {
+    ringbuffer_addchar(&ring,randchars[i]);
+    }
+
+  // printf("Pre = %d, Post=%d\n", pre_free,ringbuffer_free(&ring));
+  CU_ASSERT( ringbuffer_free(&ring) == (FULLSIZE - count));
+  CU_ASSERT( ringbuffer_used(&ring) == count);
+
+  // Now pull them out and make sure that they match.
+  for ( int i = 0; i < count; i++) {
+    int cout = ringbuffer_getchar(&ring);
+    CU_ASSERT( cout = randchars[i]);
+    }
+  }
+
+// Find a random length of the right size > 0 && <= max
+static int next_rand(int max) {
+  int val;
+  do {
+    val = random() & (RINGSIZE-1);
+  } while ( (val == 0 ) || ( val > max ) );
+  return(val);
+}
+
+// Push a random number of characters.
+void testRandAdd() {
+  srandom(0); // Start with a known seed value.
+  drain(); // Known state
+  // Fill it with known data.
+  for (int i=0; i<RINGSIZE;i++) bufcontents[i] = '_';
+
+  printf("before: iWrite=%02d, iRead=%02d ",ring.iWrite,ring.iRead);
+
+  for (int i=0; i < 50; i++) {
+    int max = ringbuffer_free(&ring);
+    int size = next_rand(max);
+    // printf("%02d/%02d ",size,max);
+    // dump_ring();
+
+    CU_ASSERT( max > 0 );
+
+    doPush(size);
+    CU_ASSERT( ring.iWrite == ring.iRead );
+    }
+
+  }
 
 /* The main() function for setting up and running the tests.
  * Returns a CUE_SUCCESS on successful running, another
@@ -204,7 +274,7 @@ int main() {
 	int i;
 	CU_pSuite pSuite = NULL;
 
-	srandom(time(0));
+	srandom(0);
 
    /* initialize the CUnit test registry */
    if (CUE_SUCCESS != CU_initialize_registry())
@@ -223,7 +293,8 @@ int main() {
 	rcode = (NULL == CU_add_test(pSuite, "Test of fresh structure", testNEW)) ||
         	(NULL == CU_add_test(pSuite, "push/get 1000 chars", testSINGLES)) ||
         	(NULL == CU_add_test(pSuite, "underflow ", testUnderFlow)) ||
-        	(NULL == CU_add_test(pSuite, "Overflow test", testOverflow)) ;
+        	(NULL == CU_add_test(pSuite, "Overflow test", testOverflow)) ||
+          (NULL == CU_add_test(pSuite, "Random Length Adds", testRandAdd)) ;
 
    if ( rcode ) {
       CU_cleanup_registry();
