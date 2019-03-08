@@ -37,13 +37,16 @@
  // are useful for aggregating small writes into network buffers.
 
 #include <stdio.h>
-#include <string.h>
-#include <time.h>
-#include "CUnit/Basic.h"
-
 #include <stdlib.h>
 #include <stdint.h>
+
+#include <sys/types.h>
+#include <time.h>
+
 #include "ringbuffer.h"
+
+#include "CUnit/Basic.h"
+
 
 #define BUFFERSIZE 16384
 #define RINGSIZE 16
@@ -51,7 +54,8 @@
 #define FULLSIZE (RINGSIZE-1)
 
 
-const uint8_t patternchars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
+// This is twice as long so we can wrap off the end.
+const uint8_t patternchars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
 #define PATTERNLEN 32
 
 uint8_t bufcontents[RINGSIZE];
@@ -65,7 +69,7 @@ RINGBUF ring;
 
 // A Dump that assumes printable data.
 void dump_ring() {
-  for ( int i; i<RINGSIZE; i++) printf("%c",bufcontents[i]);
+  for ( int i = 0; i<RINGSIZE; i++) printf("%c",bufcontents[i]);
   printf(" ");
 }
 
@@ -92,145 +96,8 @@ int drain() {
   return(count);
   }
 
-// ---------------------------------------------------
-/* The suite initialization function.
- * Returns zero on success, non-zero otherwise.
- */
-int init_suite1(void) {
-	source = makerandbuffer();
-	dest = malloc(BUFFERSIZE * sizeof(uint8_t));
-	ringbuffer_init(&ring,bufcontents,RINGSIZE);
-
-	return(0);
-}
-
-/* The suite cleanup function.
- * Closes the temporary file used by the tests.
- * Returns zero on success, non-zero otherwise.
- */
-int clean_suite1(void)
-{
-      return 0;
-}
-
-// ------------------------------------------------------
-// ------------------------------------------------------
-// Tests
-// ------------------------------------------------------
-// ------------------------------------------------------
-
-// ----------------------------------------
-void testNEW(void) {
-	CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE );
-	CU_ASSERT(ringbuffer_used(&ring) == 0);
-	CU_ASSERT(ring.iWrite == 0 );
-	CU_ASSERT(ring.iRead == 0 );
-	CU_ASSERT( ring.Dropped == 0 );
-}
-
-// ----------------------------------------
-// Push a lot of data into the ring buffer, and see of it comes
-// back out.   We should start with an empty buffer
-void testSINGLES(void) {
-
-	int i;
-	uint8_t cin, cout;
-
-
-	// Push a lot of bytes through.  Check lots of stuff
-	for (i=0; i < 1000; i++) {
-		cin = source[i];
-
-		CU_ASSERT(ring.iWrite == ring.iRead );
-
-		// Make sure we return the right thing.
-		CU_ASSERT( ringbuffer_addchar(&ring, cin) == FULLSIZE-1 )
-    CU_ASSERT( ring.iWrite > ring.iRead )
-
-		CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE-1);
-
-		// Nothing should be getting Dropped
-		CU_ASSERT( ring.Dropped == 0 );
-		CU_ASSERT(ringbuffer_used(&ring) == 1);
-
-		cout = ringbuffer_getchar(&ring);
-
-		CU_ASSERT(ring.iWrite == ring.iRead );
-		CU_ASSERT(ringbuffer_used(&ring) == 0);
-		CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE);
-
-		CU_ASSERT(cin == cout);
-		}
-
-	}
-
-// ----------------------------------------
-void testUnderFlow(void) {
-
-	int i;
-	uint8_t cin;
-  int cout;
-
-	// Push a lot of bytes through.  Check lots of stuff
-	for (i=0; i < 10; i++) {
-		cin = source[i];
-		ringbuffer_addchar(&ring, cin);
-		}
-  CU_ASSERT( ring.iWrite > ring.iRead )
-
-	for (i=0; i < 10; i++) {
-		cout = ringbuffer_getchar(&ring);
-		CU_ASSERT(cout == source[i]);
-		}
-
-  CU_ASSERT(ring.iWrite == ring.iRead );
-
-
-	for (i=0; i < 10; i++) {
-		cout = ringbuffer_getchar(&ring);
-		CU_ASSERT(cout == -1);
-		}
-
-	}
-
-// ----------------------------------------
-// ----------------------------------------
-void testOverflow() {
-
-	int i, count, ret;
-	uint8_t cin, cout;
-
-  int dropped_before = ring.Dropped;
-
-  // Drain the buffer, make sure it takes a reasonable number of characters.
-  count = drain();
-  CU_ASSERT(count <= RINGSIZE);
-
-  // Now fill it up, and verify that we can insert the correct number
-  // of characters.
-
-  count = 0;
-  do {
-    uint8_t cin = count & 0xFF;
-    ret = ringbuffer_addchar(&ring, cin);
-    if ( ret >= 0 ) count++;
-  } while(ret && count < 2*RINGSIZE);
-  CU_ASSERT(count == FULLSIZE);
-  // Make sure that it got recorded as dropped.
-  CU_ASSERT(ring.Dropped = (dropped_before+1) );
-
-  // Clean up.
-  drain();
-  CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE);
-	}
-
-
-// ----------------------------------------
-// ----------------------------------------
-
 // Add a random number of characters, and then
 // pull them all out.   Make sure that things match.
-
 void doPush(int count) {
 
   CU_ASSERT( ringbuffer_free(&ring) == FULLSIZE);
@@ -245,11 +112,14 @@ void doPush(int count) {
 
   // Now pull them out and make sure that they match.
   for ( int i = 0; i < count; i++) {
-    int cout = ringbuffer_getchar(&ring);
-    CU_ASSERT( cout = patternchars[i]);
+    int c_out = ringbuffer_getchar(&ring);
+    CU_ASSERT( c_out = patternchars[i]);
     }
   }
 
+// Add a random number of characters, and then
+// pull them all out with bulk remove functions.
+// Make sure that things match.
 void doPushBulkRemove(int count) {
 
   CU_ASSERT( ringbuffer_free(&ring) == FULLSIZE);
@@ -290,6 +160,7 @@ void doPushBulkRemove(int count) {
     }
 
   CU_ASSERT( ring.iWrite == ring.iRead );
+  CU_ASSERT( ring.Dropped == 0);
   }
 
 // Find a random length of the right size > 0 && <= max
@@ -301,7 +172,146 @@ static int next_rand(int max) {
   return(val);
 }
 
-// Push a random number of characters.
+// ---------------------------------------------------
+// ---------------------------------------------------
+/* The suite initialization function.
+ * Returns zero on success, non-zero otherwise.
+ */
+int init_suite1(void) {
+	source = makerandbuffer();
+	dest = malloc(BUFFERSIZE * sizeof(uint8_t));
+	ringbuffer_init(&ring,bufcontents,RINGSIZE);
+
+	return(0);
+}
+
+/* The suite cleanup function.
+ * Closes the temporary file used by the tests.
+ * Returns zero on success, non-zero otherwise.
+ */
+int clean_suite1(void)
+{
+      return 0;
+}
+
+// ------------------------------------------------------
+// ------------------------------------------------------
+// Tests
+// ------------------------------------------------------
+// ------------------------------------------------------
+
+// ----------------------------------------
+// ----------------------------------------
+void testNEW(void) {
+	CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE );
+	CU_ASSERT(ringbuffer_used(&ring) == 0);
+	CU_ASSERT(ring.iWrite == 0 );
+	CU_ASSERT(ring.iRead == 0 );
+	CU_ASSERT( ring.Dropped == 0 );
+}
+
+// ----------------------------------------
+// ----------------------------------------
+// Push a lot of data into the ring buffer, and see of it comes
+// back out.   We should start with an empty buffer
+void testSINGLES(void) {
+
+	int i;
+	uint8_t cin, cout;
+
+
+	// Push a lot of bytes through.  Check lots of stuff
+	for (i=0; i < 1000; i++) {
+		cin = source[i];
+
+		CU_ASSERT(ring.iWrite == ring.iRead );
+
+		// Make sure we return the right thing.
+		CU_ASSERT( ringbuffer_addchar(&ring, cin) == FULLSIZE-1 )
+    CU_ASSERT( ring.iWrite > ring.iRead )
+
+		CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE-1);
+
+		// Nothing should be getting Dropped
+		CU_ASSERT( ring.Dropped == 0 );
+		CU_ASSERT(ringbuffer_used(&ring) == 1);
+
+		cout = ringbuffer_getchar(&ring);
+
+		CU_ASSERT(ring.iWrite == ring.iRead );
+		CU_ASSERT(ringbuffer_used(&ring) == 0);
+		CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE);
+
+		CU_ASSERT(cin == cout);
+		}
+
+	}
+
+// ----------------------------------------
+// ----------------------------------------
+void testUnderFlow(void) {
+
+	int i;
+	uint8_t cin;
+  int cout;
+
+	// Push a lot of bytes through.  Check lots of stuff
+	for (i=0; i < 10; i++) {
+		cin = source[i];
+		ringbuffer_addchar(&ring, cin);
+		}
+  CU_ASSERT( ring.iWrite > ring.iRead )
+
+	for (i=0; i < 10; i++) {
+		cout = ringbuffer_getchar(&ring);
+		CU_ASSERT(cout == source[i]);
+		}
+
+  CU_ASSERT(ring.iWrite == ring.iRead );
+
+
+	for (i=0; i < 10; i++) {
+		cout = ringbuffer_getchar(&ring);
+		CU_ASSERT(cout == -1);
+		}
+
+	}
+
+// ----------------------------------------
+// ----------------------------------------
+void testOverflow() {
+
+	int count, ret;
+
+  int dropped_before = ring.Dropped;
+
+  // Drain the buffer, make sure it takes a reasonable number of characters.
+  count = drain();
+  CU_ASSERT(count <= RINGSIZE);
+
+  // Now fill it up, and verify that we can insert the correct number
+  // of characters.
+
+  count = 0;
+  do {
+    uint8_t cin = count & 0xFF;
+    ret = ringbuffer_addchar(&ring, cin);
+    if ( ret >= 0 ) count++;
+  } while(ret && count < 2*RINGSIZE);
+  CU_ASSERT(count == FULLSIZE);
+  // Make sure that it got recorded as dropped.
+  CU_ASSERT(ring.Dropped = (dropped_before+1) );
+  ring.Dropped = 0; // Put it back!
+
+  // Clean up.
+  drain();
+  CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE);
+	}
+
+// ----------------------------------------
+// ----------------------------------------
+// Push a random number of characters and 
+// pull them out. 
 void testRandAdd() {
   printf("Chars ");
   srandom(0); // Start with a known seed value.
@@ -309,7 +319,7 @@ void testRandAdd() {
   // Fill it with known data.
   for (int i=0; i<RINGSIZE;i++) bufcontents[i] = '_';
 
-  // printf("before: iWrite=%02d, iRead=%02d ",ring.iWrite,ring.iRead);
+  printf("before: iWrite=%02d, iRead=%02d ",ring.iWrite,ring.iRead);
 
   for (int i=0; i < 50; i++) {
     int max = ringbuffer_free(&ring);
@@ -322,8 +332,12 @@ void testRandAdd() {
     doPush(size);
     CU_ASSERT( ring.iWrite == ring.iRead );
     }
+  }
 
-  printf("Bulk ");
+
+void testRandAddBulkRemove() {
+
+  printf("Bulk Remove");
   printf("\n  before: iWrite=%02d, iRead=%02d\n",ring.iWrite,ring.iRead);
 
   // Do it again, with the bulk remove operator.
@@ -345,9 +359,9 @@ void testRandAdd() {
     printf("\n");
     }
 
+  fflush(stdout);
   }
-
-
+  
 // ----------------------------------------
 // ----------------------------------------
 
@@ -358,111 +372,68 @@ void testRandAdd() {
 //  fill the buffer all the way up.
 //  take a maximal bite and check the results.
 
-static PrCon(int offset, int loops) {
+static void PrConOp(int offset, int loops) {
+    // Pre-load, and mark empty.
+    ring.iRead += offset;
+    ring.iWrite = ring.iRead;
+    printf("Pre-load %d ", offset);
+    dump_ring(); printf("\n");
+    
+    // Keep an index so that we can do our checks.
+    int wr_index = 0; int rd_index = 0;
+    
+    for ( int i = 0; i < loops; i++ ) {
+        // Fill it up.
+        int count = 0;
+        while ( ringbuffer_free(&ring) ) {
+            ringbuffer_addchar(&ring, patternchars[wr_index & (PATTERNLEN-1)]);
+            wr_index++;
+            count++;
+            }
+        printf("Pre-filled %d ", count);
 
-  // Pre-load, and mark empty.
-  ring.iRead += offset;
-  ring.iWrite = ring.iRead;
+        dump_ring();
 
-  // Keep an index so that we can do our checks.
-  int wr_index = 0; int rd_index = 0;
+        // Now for the main loop that tests the aggregation.
+        // if we alternate between filling and bulk removal, it should
+        // result in full - sized operations.
 
-  // Fill it up.
-  while ( ringbuffer_free(&ring)) {
-      ringbuffer_addchar(&ring, patternchars[wr_index & (PATTERNLEN-1)]);
-      wr_index++;
-  }
+        while (ringbuffer_getbulkcount(&ring) ) {
+            uint8_t *start = ringbuffer_getbulkpointer(&ring);
+            int howmuch = ringbuffer_getbulkcount(&ring);
+            
+            const uint8_t *ref = &patternchars[rd_index & (PATTERNLEN-1)];
+            int ret = memcmp(start,ref,howmuch);
+            CU_ASSERT(ret == 0);
+            if ( ret != 0 )
+                return;
 
-  dump_ring();
+            ringbuffer_bulkremove(&ring, howmuch);
+            rd_index += howmuch;
+            printf(" Removed %d",howmuch);
+            }
+        CU_ASSERT(rd_index == wr_index);
+        printf("\n");
+        }
+    }
 
-  // Now for the main loop that tests the aggregation.
-  // if we alternate between filling and bulk removal, it should
-  // result in full - sized operations.
-
-  for ( int i; i < loops; i++ ) {
-    uint8_t *start = ringbuffer_getbulkpointer(&ring);
-    int howmuch = ringbuffer_getbulkcount(&ring);
-
-    uint8_t ref = &patternchars[rd_index & (PATTERNLEN-1)])
-    int ret = memcmp(start,ref,homuch);
-    CU_ASSERT(ret == 0);
-
-    ringbuffer_bulkremove(&ring, howmuch);
-    rd_index += howmuch;
-
-     
-
-
-
-  }
-
-
-
-
-  }
-
+// --------------------------------------------------
+// Producer/Consumer Test.  
+// Add a random number of characters to the RB, 
+// then fill it all the way up.
+// Drain it using bulk operations.
+// Use two indices into the pattern space to verify that
+// the data is being handled correctly. 
 
 void testProducerConsumer() {
-  printf("Produce/Consume ");
+  printf("Produce/Consume\n");
   srandom(0); // Start with a known seed value.
 
-  // Fill it with known data.
-  for (int i=0; i<RINGSIZE;i++) bufcontents[i] = '_';
-
-  // printf("before: iWrite=%02d, iRead=%02d ",ring.iWrite,ring.iRead);
-  // So we'll alternate between filling it all the way up,
-  // and draining it with the bulk operators.
-
-  // Keep independent indices into the pattern array.
-  int wr_index = 0; int rd_index = 0; //
-
-  int size = next_rand(ringbuffer_free(&ring));
-
-
-
-
-
-
-  //
-
-
-
-
-
-  for (int i=0; i < 50; i++) {
-    int max = ringbuffer_free(&ring);
-    int size = next_rand(ringbuffer_free(&ring));
-    // printf("%02d/%02d ",size,max);
-    // dump_ring();
-
-    CU_ASSERT( max > 0 );
-
-    doPush(size);
-    CU_ASSERT( ring.iWrite == ring.iRead );
+  // Random # of characters between 0-4
+    for ( int i = 0; i < 5; i++ ) {
+        int preload = rand() & 0x3;
+        PrConOp(preload, 16);
     }
-
-  printf("Bulk ");
-  printf("\n  before: iWrite=%02d, iRead=%02d\n",ring.iWrite,ring.iRead);
-
-  // Do it again, with the bulk remove operator.
-  srandom(0); // Start with a known seed value.
-  drain(); // Known state
-  CU_ASSERT( ringbuffer_used(&ring) == 0 );
-  for (int i=0; i<RINGSIZE;i++) bufcontents[i] = '_';
-
-  for (int i=0; i < 50; i++) {
-    int max = ringbuffer_free(&ring);
-    int size = next_rand(max);
-    printf("%03d %02d/%02d ",i,size,max);
-    dump_ring();
-
-    CU_ASSERT( max > 0 );
-
-    doPushBulkRemove(size);
-    CU_ASSERT( ring.iWrite == ring.iRead );
-    printf("\n");
-    }
-
   }
 
 
@@ -473,7 +444,6 @@ void testProducerConsumer() {
 int main() {
 
 	int rcode;
-	int i;
 	CU_pSuite pSuite = NULL;
 
 	srandom(0);
@@ -496,7 +466,10 @@ int main() {
         	(NULL == CU_add_test(pSuite, "push/get 1000 chars", testSINGLES)) ||
         	(NULL == CU_add_test(pSuite, "underflow ", testUnderFlow)) ||
         	(NULL == CU_add_test(pSuite, "Overflow test", testOverflow)) ||
-          (NULL == CU_add_test(pSuite, "Random Length Adds", testRandAdd)) ;
+          (NULL == CU_add_test(pSuite, "Random Length Adds", testRandAdd)) ||
+          (NULL == CU_add_test(pSuite, "Random Length Adds", testRandAddBulkRemove)) ||
+          (NULL == CU_add_test(pSuite, "Producer/Consumer test", testProducerConsumer))
+           ;
 
    if ( rcode ) {
       CU_cleanup_registry();
