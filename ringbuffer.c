@@ -52,21 +52,22 @@ uint32_t ringbuffer_used(RINGBUF* rb) {
 /// @detail That means that the maximal room is BufSize - 1 = BufMask 
 /// @param rb pointer to a ringbuffer structure
 uint32_t ringbuffer_free(RINGBUF* rb) {
-	return(rb->BufMask - ringbuffer_used(rb));
+	return(rb->BufSize - ringbuffer_used(rb));
 	}
 
 /// @brief Add a character to the ringbuffer
-/// @return The number of remaining space in the ringbuffer, or -1 if full
+/// @return number of remaining spaces in the ringbuffer after the write
+/// @return return -1 on write failure.
 /// @param rb pointer to a ringbuffer structure
 /// @param c character to add to the ringbuffer
-// If incrementing the write counter makes it equal to 
-// the read counter, that means that we're full.   Reject it and
-// return -1 so that the producer can retry.
+// Its not enough to check for wrap, we have to use math to get it right.
+// If full, return -1 so that the producer can retry.
+//
 int32_t ringbuffer_addchar(RINGBUF* rb, uint8_t c) {
 	uint32_t iWritePend = rb->iWrite + 1; 
 
 	// Don't clobber the existing data.
-	if ( (iWritePend & rb->BufMask) != (rb->iRead & rb->BufMask) ) {
+	if ( (iWritePend - rb->iRead) <= rb->BufSize ) {
 		rb->Buf[rb->iWrite & rb->BufMask] = c; 
 		rb->iWrite = iWritePend;
 		return(ringbuffer_free(rb));
