@@ -51,7 +51,7 @@
 #define BUFFERSIZE 16384
 #define RINGSIZE 16
 
-#define FULLSIZE (RINGSIZE-1)
+#define FULLSIZE (RINGSIZE)
 
 
 // This is twice as long so we can wrap off the end.
@@ -278,27 +278,39 @@ void testUnderFlow(void) {
 	}
 
 // ----------------------------------------
+// Overflow test.    This one is sensitive
+// to the nature of the buffer.
+// We should be able to add RINGSIZE + characters
+// and see exactly one get dropped.
 // ----------------------------------------
 void testOverflow() {
 
-	int count, ret;
+    int count;
+    int ret = 0;
 
   int dropped_before = ring.Dropped;
 
   // Drain the buffer, make sure it takes a reasonable number of characters.
   count = drain();
   CU_ASSERT(count <= RINGSIZE);
+  ret = ringbuffer_free(&ring);
+  CU_ASSERT(ret == RINGSIZE);
+
 
   // Now fill it up, and verify that we can insert the correct number
   // of characters.
 
-  count = 0;
-  do {
-    uint8_t cin = count & 0xFF;
+  for (int i = 0; i < RINGSIZE; i++ ) {
+    uint8_t cin = i & 0xFF;
     ret = ringbuffer_addchar(&ring, cin);
-    if ( ret >= 0 ) count++;
-  } while(ret && count < 2*RINGSIZE);
-  CU_ASSERT(count == FULLSIZE);
+    }
+  // The return code should be -1 - its full.
+  CU_ASSERT(ret == 0);
+ 
+  // Add one more.
+  ret = ringbuffer_addchar(&ring, 0xAA);
+  CU_ASSERT(ret == -1);
+
   // Make sure that it got recorded as dropped.
   CU_ASSERT(ring.Dropped = (dropped_before+1) );
   ring.Dropped = 0; // Put it back!
@@ -306,7 +318,7 @@ void testOverflow() {
   // Clean up.
   drain();
   CU_ASSERT(ringbuffer_free(&ring) == FULLSIZE);
-	}
+  }
 
 // ----------------------------------------
 // ----------------------------------------
@@ -372,7 +384,7 @@ void testRandAddBulkRemove() {
 //  fill the buffer all the way up.
 //  take a maximal bite and check the results.
 
-static void PrConOp(int offset, int loops) {
+static void PrConOp(int offset, int loops, int drainmax) {
     // Pre-load, and mark empty.
     ring.iRead += offset;
     ring.iWrite = ring.iRead;
@@ -398,7 +410,8 @@ static void PrConOp(int offset, int loops) {
         // if we alternate between filling and bulk removal, it should
         // result in full - sized operations.
 
-        while (ringbuffer_getbulkcount(&ring) ) {
+        int drainpasses = drainmax;
+        while (drainpasses && ringbuffer_getbulkcount(&ring) ) {
             uint8_t *start = ringbuffer_getbulkpointer(&ring);
             int howmuch = ringbuffer_getbulkcount(&ring);
             
@@ -411,8 +424,12 @@ static void PrConOp(int offset, int loops) {
             ringbuffer_bulkremove(&ring, howmuch);
             rd_index += howmuch;
             printf(" Removed %d",howmuch);
+            drainpasses--;
             }
-        CU_ASSERT(rd_index == wr_index);
+        // This test only works for full drain scenarios.
+        if ( drainmax > 1 ) {
+            CU_ASSERT(rd_index == wr_index);
+            }
         printf("\n");
         }
     }
@@ -425,16 +442,28 @@ static void PrConOp(int offset, int loops) {
 // Use two indices into the pattern space to verify that
 // the data is being handled correctly. 
 
-void testProducerConsumer() {
-  printf("Produce/Consume\n");
+void testProducerConsumer1() {
+  printf("Produce/Consume Fill/Drain\n");
   srandom(0); // Start with a known seed value.
 
   // Random # of characters between 0-4
     for ( int i = 0; i < 5; i++ ) {
         int preload = rand() & 0x3;
-        PrConOp(preload, 16);
+        PrConOp(preload, 16, 5);
     }
   }
+
+void testProducerConsumer2() {
+    printf("Produce/Consume Fill/Partial Drain\n");
+    srandom(0); // Start with a known seed value.
+    
+    // Random # of characters between 0-4
+    for ( int i = 0; i < 5; i++ ) {
+        int preload = rand() & 0x3;
+        PrConOp(preload, 4, 1);
+    }
+}
+
 
 
 /* The main() function for setting up and running the tests.
@@ -466,9 +495,10 @@ int main() {
         	(NULL == CU_add_test(pSuite, "push/get 1000 chars", testSINGLES)) ||
         	(NULL == CU_add_test(pSuite, "underflow ", testUnderFlow)) ||
         	(NULL == CU_add_test(pSuite, "Overflow test", testOverflow)) ||
-          (NULL == CU_add_test(pSuite, "Random Length Adds", testRandAdd)) ||
-          (NULL == CU_add_test(pSuite, "Random Length Adds", testRandAddBulkRemove)) ||
-          (NULL == CU_add_test(pSuite, "Producer/Consumer test", testProducerConsumer))
+            (NULL == CU_add_test(pSuite, "Random Length Adds", testRandAdd)) ||
+            (NULL == CU_add_test(pSuite, "Random Length Adds", testRandAddBulkRemove)) ||
+            (NULL == CU_add_test(pSuite, "Producer/Consumer test 1", testProducerConsumer1)) ||
+            (NULL == CU_add_test(pSuite, "Producer/Consumer test 2", testProducerConsumer2))
            ;
 
    if ( rcode ) {
