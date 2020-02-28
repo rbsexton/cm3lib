@@ -13,30 +13,39 @@
 
 @*************************************************************
 @ LaunchUserApp(uint32_t *appaddr, uint32_t *runtimep) 
-@	R0: Starting address of the user app in memory.
-@	R1: Pointer to runtime data to share with forth.
+@
 @ Loads up the stack pointer and the initial PC from memory
 @ and starts things off.   Passes in the runtime pointer.
+@ This will abandon any stack allocated in memory for the 
+@ supervisor, so its a bit wasteful. 
+@
+@	R0: Starting address of the user app in memory.
+@	R1: Pointer to runtime data to share with forth.
 @	No return 
 
 @*************************************
 .global LaunchUserApp
 LaunchUserApp:
-	cpsid i 
-	ldr r2, [ r0, #0 ] /* Thats the stack pointer */
-	mov sp, r2
-	ldr r2, [ r0, #4 ] /* The initial PC */
-        mov r0, r1         /* Put the RT Link in the right spot */
-	cpsie i
+  cpsid i 
+  ldr r2, [ r0, #0 ] /* Thats the stack pointer */
+  mov sp, r2
+  ldr r2, [ r0, #4 ] /* The initial PC */
+  mov r0, r1         /* Put the RT Link in the right spot */
+  cpsie i
 	bx  r2
 
 @*************************************************************
-@ LaunchUserAppThread(uint32_t *appaddr, uint32_t *runtimep) 
+@ LaunchUserAppThread(uint32_t *appaddr, uint32_t *runtimep)
+@
+@ Loads up the stack pointer and the initial PC from memory
+@ and starts things off.  Switches to thread mode.
+@ Passes in the runtime pointer.
+@ 
+@ Compatible with Cortex-M0
+@
 @	R0: Starting address of the user app in memory.
 @	R1: Pointer to runtime data to share with forth.
-@ Loads up the stack pointer and the initial PC from memory
-@ and starts things off.   Passes in the runtime pointer.
-@	No return 
+@	Does not return 
 
 @*************************************
 .global LaunchUserAppThread
@@ -54,28 +63,34 @@ LaunchUserAppThread:
 	bx  r2
 
 @*************************************************************
-@ LaunchUserAppNoSP(uint32_t *appaddr, uint32_t *runtimep) 
+@ void LaunchUserAppNoSP(uint32_t *appaddr, uint32_t *runtimep) 
+@
+@ Loads up the initial PC from memory and starts things off.
+@ Use the existing stack pointer.
+@
 @	R0: Starting address of the user app in memory.
 @	R1: Pointer to runtime data to share with forth.
-@ Loads up the initial PC from memory and starts things off.
-@ Don't alter the stack pointer.
-@	No return 
+@	Does not return 
 
 @*************************************
 .global LaunchUserAppNoSP
 
 LaunchUserAppNoSP:
-        ldr r2, [ r0, #4 ] /* The initial PC */
-        mov r0, r1  
+  ldr r2, [ r0, #4 ] /* The initial PC */
+  mov r0, r1  
 	bx  r2
 
 @*************************************************************
 @ LaunchUserAppUpdateNVIC(uint32_t *appaddr, uint32_t *runtimep) 
-@	R0: Starting address of the user app in memory.
-@	R1: Pointer to runtime data to share with forth.
+@
 @ Loads up the initial PC from memory and starts things off.
 @ Adjust the VTOR register in the NVIC so that the app can use
 @ the interrupt vectors.
+@
+@	R0: Starting address of the user app in memory.
+@	R1: Pointer to runtime data to share with forth.
+@
+@	Does not return 
 @
 @ The Cortex-M0 has no VTOR register.
 @
@@ -86,15 +101,15 @@ LaunchUserAppNoSP:
 LaunchUserAppUpdateNVIC:
 	cpsid i 
 	ldr r2, [ r0, #0 ] /* Stack pointer */
-        mov sp, r2
+  mov sp, r2
 
 	ldr r2, =0xE000ED08 /* VTOR */
 	str r0, [ r2, #0 ]
                  
-        ldr r2, [ r0, #4 ] /* Initial PC */
-        mov r0, r1 /* Runtime link */                  
+  ldr r2, [ r0, #4 ] /* Initial PC */
+  mov r0, r1 /* Runtime link */                  
 
-        cpsie i 
-        bx r2
+  cpsie i 
+  bx r2
  .end
 
