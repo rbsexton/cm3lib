@@ -20,11 +20,11 @@
 
 #define RASR_Entry_Enable 1
 
-// Here is a default table.  Note that we just skip the 
+// Here is a default table.  Note that we just skip the
 // Region select register and whack it all in.
 // This also includes templates
 //
-// Regions 
+// Regions
 // 0 R/W overlay for the whole world
 // Slots for the user-mode task to use.
 // 6 R/O user overlay for the supervisor memory
@@ -33,33 +33,33 @@
 // register.  That may not be what you want, so only load valid, enabled regions.
 // In this case, just use duplicates for filler.
 uint32_t const mpudefaults [8][2] = {
-  {          0 | MPU_RBAR_VALID_Msk | 0 , MPU_PRW_URW | MPU_SIZE_4G | RASR_Entry_Enable },
-  {          0 | MPU_RBAR_VALID_Msk | 1 , MPU_PRW_URW | MPU_SIZE_4G  },
-  { 0x20000000 | MPU_RBAR_VALID_Msk | 2 , MPU_PRW_URO | MPU_SIZE_4K  },
-  { 0x20000000 | MPU_RBAR_VALID_Msk | 3 , MPU_PRW_URO | MPU_SIZE_4K  },
-  { 0x20000000 | MPU_RBAR_VALID_Msk | 4 , MPU_PRW_URO | MPU_SIZE_4K  },
-  { 0x20000000 | MPU_RBAR_VALID_Msk | 5 , MPU_PRW_URO | MPU_SIZE_4K  },
-  { 0x20000000 | MPU_RBAR_VALID_Msk | 6 , MPU_PRW_URO | MPU_SIZE_4K | RASR_Entry_Enable  },
-  {          0 | MPU_RBAR_VALID_Msk | 7 , MPU_PRW_URW | MPU_SIZE_4G  }
+        {          0 | MPU_RBAR_VALID_Msk | 0, MPU_PRW_URW | MPU_SIZE_4G | RASR_Entry_Enable },
+        {          0 | MPU_RBAR_VALID_Msk | 1, MPU_PRW_URW | MPU_SIZE_4G  },
+        { 0x20000000 | MPU_RBAR_VALID_Msk | 2, MPU_PRW_URO | MPU_SIZE_4K  },
+        { 0x20000000 | MPU_RBAR_VALID_Msk | 3, MPU_PRW_URO | MPU_SIZE_4K  },
+        { 0x20000000 | MPU_RBAR_VALID_Msk | 4, MPU_PRW_URO | MPU_SIZE_4K  },
+        { 0x20000000 | MPU_RBAR_VALID_Msk | 5, MPU_PRW_URO | MPU_SIZE_4K  },
+        { 0x20000000 | MPU_RBAR_VALID_Msk | 6, MPU_PRW_URO | MPU_SIZE_4K | RASR_Entry_Enable  },
+        {          0 | MPU_RBAR_VALID_Msk | 7, MPU_PRW_URW | MPU_SIZE_4G  }
 
-};
+    };
 
 
 void mpu_setup() {
 
-uint32_t i;
-	
-/* Disable MPU */
- MPU->CTRL &= ~MPU_CTRL_ENABLE_Msk;
-    
- for (i = 0; i<8; i++) {
-   MPU->RBAR = mpudefaults[i][0];
-   MPU->RASR = mpudefaults[i][1];
- }
- 
- /* Enable MPU */
- MPU->CTRL |= MPU_CTRL_PRIVDEFENA_Msk | MPU_CTRL_ENABLE_Msk;
+    uint32_t i;
 
-}
+    /* Disable MPU */
+    MPU->CTRL &= ~MPU_CTRL_ENABLE_Msk;
+
+    for (i = 0; i < 8; i++) {
+        MPU->RBAR = mpudefaults[i][0];
+        MPU->RASR = mpudefaults[i][1];
+        }
+
+    /* Enable MPU */
+    MPU->CTRL |= MPU_CTRL_PRIVDEFENA_Msk | MPU_CTRL_ENABLE_Msk;
+
+    }
 
 

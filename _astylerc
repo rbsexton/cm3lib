@@ -1,0 +1,19 @@
+# How to use: 
+# astyle --project=lava.astyle <file>
+# this line is a comment
+# --style=allman      # this is a line-end comment
+#--style=google      # this is a line-end comment
+--style=ratliff      # this is a line-end comment
+# long options can be written without the preceding '--'
+# indent-switches     # cannot do this on the command line
+# short options must have the preceding '-'
+#-t -p
+# short options can be concatenated together
+# -M60Ucv
+# Pad Operators
+--pad-oper
+# Fix any lines with 'other' terminations that may have snuck in.
+--lineend=linux
+# Pad empty lines around header blocks (e.g. 'if', 'for', 'while'...).
+--break-blocks 
+

@@ -1,17 +1,17 @@
-// 
+//
 // Macros of use in developing fault handlers.
 // Copyright 2014 Robert Sexton.
 //
 // This software has NO WARRANTY.
 // I hereby place it into the public domain for any use you see fit.
 //
-// Largely inspired by Joseph Yiu's Cortex-M3 book.   Saves all of the resgisters to 
+// Largely inspired by Joseph Yiu's Cortex-M3 book.   Saves all of the resgisters to
 // a holding area so you can make a nice rigister dump.
 //
 // GCC Register syntax.
-// Assumes that you have a 17-word array available to hold 
+// Assumes that you have a 17-word array available to hold
 // the register dump.
-// Include this in another function that does something nice with the 
+// Include this in another function that does something nice with the
 // information.
 
 #define FH_REGISTER_SAVE __asm__ __volatile__ ( \
@@ -57,4 +57,4 @@
    \
    "pop {r4-r7}\n" \
    : : : "r0","r1","r2", "memory" );
-		
+
