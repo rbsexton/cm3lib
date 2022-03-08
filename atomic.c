@@ -17,14 +17,46 @@
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 int32_t atomic_add(uint32_t *sem, int32_t delta) {
     int32_t result;
-    __asm(	"L: ldrex	%[result], [ %[sem], #0 ]\n\t"
-            "add		%[result], %[delta]\n\t"
-            "strex		r3 , %[result], [ %[sem] ]\n\t"
-            "cmp		r3, #1\n\t"
-            "bne		L\n"
-            "dmb		\n" // Required by Architecture. (DAI0321A)
+    __asm("1: ldrex  %[result], [ %[sem], #0 ]\n\t"
+              "add   %[result], %[delta]\n\t"
+              "strex r3 , %[result], [ %[sem] ]\n\t"
+              "cmp   r3, #1\n\t"
+              "bne   b1\n"
+              "dmb   \n" // Required by Architecture. (DAI0321A)
             : [result] "=&r" (result) :
             [sem] "r" (sem), [delta] "r" (delta) : "r3" );
 
     return(result);
     }
+    
+int32_t atomic_mask_or(uint32_t *sem, uint32_t mask) {
+      int32_t result;
+      __asm("1: ldrex  %[result], [ %[sem], #0 ]\n\t"
+                "orr   %[result], %[mask]\n\t"
+                "strex r3 , %[result], [ %[sem] ]\n\t"
+                "cmp   r3, #1\n\t"
+                "bne   b1\n"
+                "dmb   \n" // Required by Architecture. (DAI0321A)
+              : [result] "=&r" (result) :
+              [sem] "r" (sem), [mask] "r" (mask) : "r3" );
+
+      return(result);
+      }
+
+int32_t atomic_mask_and(uint32_t *sem, uint32_t mask) {
+      int32_t result;
+      __asm("1: ldrex  %[result], [ %[sem], #0 ]\n\t"
+                "and   %[result], %[mask]\n\t"
+                "strex r3 , %[result], [ %[sem] ]\n\t"
+                "cmp   r3, #1\n\t"
+                "bne   b1\n"
+                "dmb   \n" // Required by Architecture. (DAI0321A)
+              : [result] "=&r" (result) :
+              [sem] "r" (sem), [mask] "r" (mask) : "r3" );
+
+      return(result);
+      }
+    
+
+    
+    
