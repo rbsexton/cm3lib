@@ -1,6 +1,13 @@
 /// @file atomic.c
 ///
 /// @brief LDREX/STREX based semaphore operators
+/// ARM App note DAI0321A says that you need memory barriers 
+/// after writing via strex, or before clearing a lock.
+/// These functions can be used either way, so include a
+/// memory barrier before and after the exclusive operators.
+///
+/// Compile this with optimization, otherwise you'll get a bunch 
+/// of useless stack operations.
 
 #include <stdint.h>
 
@@ -17,7 +24,8 @@
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 int32_t atomic_add(uint32_t *sem, int32_t delta) {
     int32_t result;
-    __asm("1: ldrex  %[result], [ %[sem], #0 ]\n\t"
+    __asm( "  dmb   \n" 
+          "1: ldrex  %[result], [ %[sem], #0 ]\n\t"
               "add   %[result], %[delta]\n\t"
               "strex r3 , %[result], [ %[sem] ]\n\t"
               "cmp   r3, #1\n\t"
@@ -31,7 +39,8 @@ int32_t atomic_add(uint32_t *sem, int32_t delta) {
     
 int32_t atomic_mask_or(uint32_t *sem, uint32_t mask) {
       int32_t result;
-      __asm("1: ldrex  %[result], [ %[sem], #0 ]\n\t"
+      __asm("   dmb   \n" 
+            "1: ldrex  %[result], [ %[sem], #0 ]\n\t"
                 "orr   %[result], %[mask]\n\t"
                 "strex r3 , %[result], [ %[sem] ]\n\t"
                 "cmp   r3, #1\n\t"
@@ -45,7 +54,8 @@ int32_t atomic_mask_or(uint32_t *sem, uint32_t mask) {
 
 int32_t atomic_mask_and(uint32_t *sem, uint32_t mask) {
       int32_t result;
-      __asm("1: ldrex  %[result], [ %[sem], #0 ]\n\t"
+      __asm("   dmb   \n" 
+            "1: ldrex  %[result], [ %[sem], #0 ]\n\t"
                 "and   %[result], %[mask]\n\t"
                 "strex r3 , %[result], [ %[sem] ]\n\t"
                 "cmp   r3, #1\n\t"
