@@ -11,17 +11,10 @@
 
 #include <stdint.h>
 
-/// @brief Do an atomic add.
+/// @brief Atomic add.
 /// @return the new value
 /// @param *sem pointer to the underlying value
 /// @param delta how much to add
-// Note that Interrupts/Exceptions may clear the exclusive monitor, so just retry.
-// This function will always succeed.
-// Return the result of add.
-//
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// If you compile this without optimization you will get a terrible result.
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 int32_t atomic_add(uint32_t *sem, int32_t delta) {
     int32_t result;
     __asm( "  dmb   \n" 
@@ -37,7 +30,12 @@ int32_t atomic_add(uint32_t *sem, int32_t delta) {
     return(result);
     }
     
-int32_t atomic_mask_or(uint32_t *sem, uint32_t mask) {
+
+/// @brief Atomic OR
+/// @return the new value
+/// @param *sem pointer to the underlying value
+/// @param mask 
+uint32_t atomic_mask_or(uint32_t *sem, uint32_t mask) {
       int32_t result;
       __asm("   dmb   \n" 
             "1: ldrex  %[result], [ %[sem], #0 ]\n\t"
@@ -52,7 +50,11 @@ int32_t atomic_mask_or(uint32_t *sem, uint32_t mask) {
       return(result);
       }
 
-int32_t atomic_mask_and(uint32_t *sem, uint32_t mask) {
+/// @brief Atomic AND
+/// @return the new value
+/// @param *sem pointer to the underlying value
+/// @param mask 
+uint32_t atomic_mask_and(uint32_t *sem, uint32_t mask) {
       int32_t result;
       __asm("   dmb   \n" 
             "1: ldrex  %[result], [ %[sem], #0 ]\n\t"
